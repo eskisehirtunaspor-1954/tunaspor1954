@@ -70,8 +70,7 @@ export async function GET(req: NextRequest) {
     .from("parent_player_links")
     .select("parent_id, players(id, full_name)");
 
-  const withChildren = (parents ?? [])..map((p: any) => ({
-    ...p,
+
     const withChildren = (parents ?? []).map((p: any) => ({
   ...p,
   children: (links ?? [])
