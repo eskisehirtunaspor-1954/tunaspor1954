@@ -1,16 +1,15 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { authenticator } from "otplib";
+import type { AdminSessionPayload } from "@/lib/session";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-const SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 saat
+// Geriye dönük uyumluluk için tip burada da re-export edilir; gerçek tanım lib/session.ts'te.
+export type { AdminSessionPayload };
 
-export interface AdminSessionPayload {
-  sub: string; // admin_users.id
-  email: string;
-  role: "super_admin" | "editor" | "content_manager" | "coach";
-  totpVerified: boolean;
-}
+// GÜVENLİK/KULLANILABİLİRLİK: otplib varsayılan olarak yalnızca ±1 zaman adımı (±30sn)
+// tolerans tanır. Sunucu ile telefon arasında küçük saat sapması olursa (çok yaygın),
+// doğru kod bile "hatalı" görünür. window:2 ile toleransı ±60sn'ye çıkarıyoruz —
+// güvenliği ciddi zayıflatmadan (TOTP zaten tek kullanımlık ve süreli) kullanılabilirliği artırır.
+authenticator.options = { window: 2 };
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 12);
@@ -18,18 +17,6 @@ export async function hashPassword(plain: string): Promise<string> {
 
 export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash);
-}
-
-export function signSessionToken(payload: AdminSessionPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: SESSION_TTL_SECONDS });
-}
-
-export function verifySessionToken(token: string): AdminSessionPayload | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as AdminSessionPayload;
-  } catch {
-    return null;
-  }
 }
 
 // ---- TOTP (Google Authenticator uyumlu 2FA) ----

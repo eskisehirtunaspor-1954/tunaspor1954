@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { verifyTotpToken, signSessionToken } from "@/lib/auth";
+import { verifyTotpToken } from "@/lib/auth";
+import { signSessionToken } from "@/lib/session";
+import { authenticator } from "otplib";
 import crypto from "crypto";
 
 const COOKIE_NAME = process.env.ADMIN_SESSION_COOKIE_NAME || "tunaspor_admin_session";
@@ -46,6 +48,13 @@ export async function POST(req: NextRequest) {
   const validTotp = verifyTotpToken(token, admin.totp_secret);
 
   if (!validTotp) {
+    // GEÇİCİ TEŞHİS LOGU — sorun çözülünce kaldırılabilir.
+    console.log("--- TOTP TEŞHİS ---");
+    console.log("Sunucu saati:", new Date().toISOString());
+    console.log("Girilen kod:", token);
+    console.log("Sunucunun şu an beklediği doğru kod:", authenticator.generate(admin.totp_secret));
+    console.log("-------------------");
+
     // 6 haneli kod tutmadıysa, yedek kod olarak dene (telefon kaybolduğunda kullanılır)
     const backupCodes: string[] = admin.totp_backup_codes ?? [];
     const inputHash = hashBackupCode(String(token).toUpperCase().trim());
@@ -78,7 +87,7 @@ export async function POST(req: NextRequest) {
     entity_id: admin.id,
   });
 
-  const sessionToken = signSessionToken({
+  const sessionToken = await signSessionToken({
     sub: admin.id,
     email: admin.email,
     role: admin.role,
