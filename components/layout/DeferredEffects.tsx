@@ -1,0 +1,27 @@
+"use client";
+
+import dynamic from "next/dynamic";
+
+// Bu bileşenler ilk ekranın (LCP/FCP) bir parçası değil — hava durumu efektleri
+// ve sohbet balonu kullanıcı sayfayı görsel olarak görüp etkileşime geçmeden
+// önce JS'in main thread'ini meşgul etmesin diye ayrı chunk'lara bölünüyor ve
+// `ssr:false` ile yalnızca client'ta, ilk boyamadan sonra yükleniyor.
+// (`ssr:false`, "use client" içeren bir dosyada olmak zorunda — bu yüzden bu
+// küçük sarmalayıcı dosya var; doğrudan layout.tsx bir server component.)
+const WeatherEffects = dynamic(
+  () => import("@/components/home/WeatherEffects").then((m) => m.WeatherEffects),
+  { ssr: false }
+);
+const AiAssistantBubble = dynamic(
+  () => import("@/components/home/AiAssistantBubble").then((m) => m.AiAssistantBubble),
+  { ssr: false }
+);
+
+export function DeferredEffects() {
+  return (
+    <>
+      <WeatherEffects />
+      <AiAssistantBubble />
+    </>
+  );
+}

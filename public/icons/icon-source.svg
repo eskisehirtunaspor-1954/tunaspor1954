@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#0A0A0B"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#FFC72C" stroke-width="14"/>
+  <text x="256" y="230" font-family="Arial, sans-serif" font-weight="900" font-size="120"
+        fill="#FFC72C" text-anchor="middle">T1954</text>
+  <text x="256" y="330" font-family="Arial, sans-serif" font-weight="700" font-size="46"
+        fill="#FFFFFF" text-anchor="middle" letter-spacing="4">TUNASPOR</text>
+  <path d="M 130 370 L 256 400 L 382 370" stroke="#FFC72C" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>
