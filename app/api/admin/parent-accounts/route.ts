@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     .filter((l: any) => l.parent_id === p.id)
     .map((l: any) => l.players),
 }));
-  }));
+
 
   return NextResponse.json({ data: withChildren });
 }
