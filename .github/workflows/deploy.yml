@@ -30,6 +30,8 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          secrets: |
+            env_file=${{ secrets.ENV_LOCAL_FILE }}
 
   # Sunucuya SSH ile bağlanıp docker compose pull + up yapan adım.
   # SSH_HOST / SSH_USER / SSH_PRIVATE_KEY secret'ları repo ayarlarından eklenmelidir.
