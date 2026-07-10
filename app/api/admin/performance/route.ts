@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const pathEntries: [string, number][] = [];
   for (const key in byPath) {
-    pathEntries.push([key, byPath[key]]);
+    pathEntries.push([key, byPath[key] ?? 0]);
   }
   pathEntries.sort((a, b) => b[1] - a[1]);
   const topPages = pathEntries.slice(0, 10).map(([path, count]) => ({ path, count }));
