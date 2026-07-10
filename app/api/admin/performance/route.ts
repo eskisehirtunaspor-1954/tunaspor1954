@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     return acc;
   }, {} as Record<string, number>);
   const topPages = Object.entries(byPath)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
     .slice(0, 10)
     .map(([path, count]) => ({ path, count }));
 
