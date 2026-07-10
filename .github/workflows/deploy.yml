@@ -36,9 +36,18 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: ${{ secrets.SSH_HOST != '' }}
     steps:
+      - name: SSH secret kontrolü
+        id: check
+        run: |
+          if [ -n "${{ secrets.SSH_HOST }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sunucuda dağıtımı tetikle
+        if: steps.check.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
