@@ -4,73 +4,43 @@ import { requireModuleAccess } from "@/lib/admin-guard";
 
 export async function GET(req: NextRequest) {
   const access = await requireModuleAccess(req, "performance");
-
-  if ("error" in access) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    );
-  }
+  if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const supabase = createServiceClient();
+  const since30d = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
-  const since30d = new Date(
-    Date.now() - 30 * 24 * 60 * 60 * 1000
-  ).toISOString();
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [
-    { data: views30d },
-    { data: todayViews },
-    { count: allTimeTotal },
-  ] = await Promise.all([
-    supabase
-      .from("page_views")
-      .select("path, device_type, session_id, created_at")
-      .gte("created_at", since30d),
-
-    supabase
-      .from("page_views")
-      .select("session_id")
-      .gte("created_at", todayStart.toISOString()),
-
-    supabase
-      .from("page_views")
-      .select("id", { count: "exact", head: true }),
+  const [{ data: views30d }, { data: todayViews }, { count: allTimeTotal }] = await Promise.all([
+    supabase.from("page_views").select("path, device_type, session_id, created_at").gte("created_at", since30d),
+    supabase.from("page_views").select("session_id").gte("created_at", todayStart.toISOString()),
+    supabase.from("page_views").select("id", { count: "exact", head: true }),
   ]);
 
-  const rows = (views30d ?? []) as any[];
-
+  const rows = views30d ?? [];
   const totalViews = rows.length;
-  const uniqueSessions = new Set(rows.map((r) => r.session_id)).size;
+  const uniqueSessions = new Set(rows.map((r: any) => r.session_id)).size;
 
-  const todayRows = (todayViews ?? []) as any[];
-
+  const todayRows = todayViews ?? [];
   const todayViewCount = todayRows.length;
-  const todayUniqueVisitors = new Set(
-    todayRows.map((r) => r.session_id)
-  ).size;
+  const todayUniqueVisitors = new Set(todayRows.map((r: any) => r.session_id)).size;
 
-  const byPath = rows.reduce((acc: Record<string, number>, r) => {
-    acc[r.path] = (acc[r.path] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const byPath: Record<string, number> = {};
+  for (const r of rows as any[]) {
+    byPath[r.path] = (byPath[r.path] ?? 0) + 1;
+  }
 
-  const topPages = Object.keys(byPath)
-    .map((path) => ({
-      path,
-      count: byPath[path] ?? 0,
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+  const pathEntries: [string, number][] = [];
+  for (const key in byPath) {
+    pathEntries.push([key, byPath[key]]);
+  }
+  pathEntries.sort((a, b) => b[1] - a[1]);
+  const topPages = pathEntries.slice(0, 10).map(([path, count]) => ({ path, count }));
 
-  const deviceSplit = rows.reduce((acc: Record<string, number>, r) => {
+  const deviceSplit: Record<string, number> = {};
+  for (const r of rows as any[]) {
     const key = r.device_type ?? "unknown";
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+    deviceSplit[key] = (deviceSplit[key] ?? 0) + 1;
+  }
 
   const { data: topNews } = await supabase
     .from("news")
