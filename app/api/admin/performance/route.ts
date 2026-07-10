@@ -18,13 +18,13 @@ export async function GET(req: NextRequest) {
 
   const rows = views30d ?? [];
   const totalViews = rows.length;
-  const uniqueSessions = new Set(rows.map((r) => r.session_id)).size;
+  const uniqueSessions = new Set(rows.map((r: any) => r.session_id)).size;
 
   const todayRows = todayViews ?? [];
   const todayViewCount = todayRows.length;
-  const todayUniqueVisitors = new Set(todayRows.map((r) => r.session_id)).size;
+  const todayUniqueVisitors = new Set(todayRows.map((r: any) => r.session_id)).size;
 
-  const byPath = rows.reduce<Record<string, number>>((acc, r) => {
+  const byPath = rows.reduce<Record<string, number>>((acc, r: any) => {
     acc[r.path] = (acc[r.path] ?? 0) + 1;
     return acc;
   }, {});
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     .slice(0, 10)
     .map(([path, count]) => ({ path, count }));
 
-  const deviceSplit = rows.reduce<Record<string, number>>((acc, r) => {
+  const deviceSplit = rows.reduce<Record<string, number>>((acc, r: any) => {
     const key = r.device_type ?? "unknown";
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
