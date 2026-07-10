@@ -1,13 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { Instagram, Facebook, Heart } from "lucide-react";
+import { Instagram, Facebook, Heart, type LucideIcon } from "lucide-react";
 
-const PLATFORM_ICON: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const PLATFORM_ICON: Record<string, LucideIcon> = {
   instagram: Instagram,
   facebook: Facebook,
   twitter: Instagram, // ayrı ikon yoksa nötr fallback
   tiktok: Instagram,
 };
-
 export async function SocialFeed() {
   const supabase = createClient();
   const { data: posts } = await supabase

@@ -5,7 +5,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Tunaspor 1954 premium kimliği: altın + siyah
         tuna: {
           black: "#050505",
           charcoal: "#111111",
@@ -15,7 +14,6 @@ const config: Config = {
           bronze: "#C89B3C",
           mist: "#9CA3AF",
           white: "#F5F5F5",
-          // Geriye dönük uyumluluk (eski bileşenler bunları hâlâ kullanıyor)
           yellow: "#FFD700",
           amber: "#E6B800",
         },

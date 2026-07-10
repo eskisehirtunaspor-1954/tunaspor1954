@@ -25,7 +25,7 @@ export function PenaltyGame({ onFinish }: { onFinish: (score: number) => void })
     setAnimating(true);
     setBallPos(zone);
 
-    const keeperZone = ZONES[Math.floor(Math.random() * ZONES.length)];
+    const keeperZone = ZONES[Math.floor(Math.random() * ZONES.length)] ?? "orta";
     const scored = zone !== keeperZone;
 
     setTimeout(() => {

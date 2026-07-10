@@ -4,10 +4,6 @@ import { requireModuleAccess } from "@/lib/admin-guard";
 import { hashParentPassword } from "@/lib/parent-auth";
 import { z } from "zod";
 
-// GÜVENLİK: Veli hesabı oluşturma ve çocuk eşleştirme YALNIZCA super_admin yapabilir.
-// Bir alt-yetkili (editor/coach) bile bunu yapamaz — çünkü yanlış eşleştirme,
-// bir yetişkinin başkasının çocuğunun kişisel verisine (devam durumu, gelişim
-// raporu, aidat) erişmesi anlamına gelir. Bu asla self-servis bir işlem değildir.
 const schema = z.object({
   email: z.string().email(),
   password: z.string().min(10, "Şifre en az 10 karakter olmalı."),
@@ -40,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const links = player_ids.map((player_id) => ({ parent_id: parent.id, player_id }));
+  const links = player_ids.map((player_id: string) => ({ parent_id: parent.id, player_id }));
   const { error: linkError } = await supabase.from("parent_player_links").insert(links);
   if (linkError) return NextResponse.json({ error: linkError.message }, { status: 500 });
 
@@ -55,7 +51,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, data: parent });
 }
 
-// Mevcut veli hesaplarını (ve bağlı çocuklarını) listele
 export async function GET(req: NextRequest) {
   const access = await requireModuleAccess(req, "parent_accounts");
   if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
@@ -70,19 +65,14 @@ export async function GET(req: NextRequest) {
     .from("parent_player_links")
     .select("parent_id, players(id, full_name)");
 
-
-    const withChildren = (parents ?? []).map((p: any) => ({
-  ...p,
-  children: (links ?? [])
-    .filter((l: any) => l.parent_id === p.id)
-    .map((l: any) => l.players),
-}));
-
+  const withChildren = (parents ?? []).map((p: any) => ({
+    ...p,
+    children: (links ?? []).filter((l: any) => l.parent_id === p.id).map((l: any) => l.players?.full_name).filter(Boolean),
+  }));
 
   return NextResponse.json({ data: withChildren });
 }
 
-// Hesabı aktif/pasif yap (silmek yerine — geçmiş kayıtlarla ilişkiler korunur)
 export async function PATCH(req: NextRequest) {
   const access = await requireModuleAccess(req, "parent_accounts");
   if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });

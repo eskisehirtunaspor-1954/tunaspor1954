@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getParentSession } from "@/lib/parent-guard";
 
-// GÜVENLİK: Bu endpoint önce oturumu doğrular, sonra SADECE parent_player_links
-// tablosunda bu veliye (parent_id) bağlı olan player_id'lerin verisini döner.
-// Başka bir çocuğun kaydına bu yoldan erişmek mimari olarak mümkün değil —
-// sorgular her zaman "player_id IN (bu veliye bağlı id'ler)" ile sınırlanır.
 export async function GET(req: NextRequest) {
   const session = await getParentSession(req);
   if (!session) return NextResponse.json({ error: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 });
@@ -23,7 +19,7 @@ export async function GET(req: NextRequest) {
     .from("parent_player_links")
     .select("player_id")
     .eq("parent_id", session.parentId);
-  const playerIds = (links ?? []).map((l) => l.player_id);
+  const playerIds = (links ?? []).map((l: any) => l.player_id);
 
   if (!playerIds.length) {
     return NextResponse.json({ parent, children: [], announcements: [] });

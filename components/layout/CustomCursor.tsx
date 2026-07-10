@@ -122,7 +122,7 @@ export function CustomCursor() {
     const startTime = performance.now();
     const maxDuration = 1000;
 
-    function spawnParticles(px: number, py: number) {
+function spawnParticles(px: number, py: number, targetLayer: HTMLDivElement) {
       for (let i = 0; i < 5; i++) {
         const p = document.createElement("div");
         p.className = "tuna-cursor-particle";
@@ -133,7 +133,7 @@ export function CustomCursor() {
         p.style.setProperty("--dx", `${Math.cos(angle) * dist}px`);
         p.style.setProperty("--dy", `${-Math.abs(Math.sin(angle) * dist)}px`);
         p.style.background = Math.random() > 0.5 ? "#8a6d3b" : "#4a7c3f";
-        layer.appendChild(p);
+        targetLayer.appendChild(p);
         setTimeout(() => p.remove(), 500);
       }
     }
@@ -150,7 +150,7 @@ export function CustomCursor() {
         posY = 0;
         vy = -Math.abs(vy) * restitution;
         bounces++;
-        spawnParticles(x + posX, y);
+        spawnParticles(x + posX, y, layer!);
         if (bounces >= maxBounces || Math.abs(vy) < 2) {
           finish();
           return;

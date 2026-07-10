@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
-// "TUNA AI" — Tunaspor 1954'ün kendi yapay zeka asistanı. Sadece statik bilgi
-// tabanından okumakla kalmaz; gerektiğinde canlı verilere (son maç sonucu gibi)
-// gerçek zamanlı erişmek için Anthropic'in tool-use (fonksiyon çağırma) özelliğini kullanır.
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -23,10 +20,6 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// ---- TUNA AI'nin çağırabileceği araçlar (tool-use) ----
-// Bu araçlar, sohbet sırasında ihtiyaç duyulduğunda gerçek veritabanı sorgusu
-// çalıştırır — böylece "son maç kaç kaç bitti?" gibi anlık sorulara ezberlenmiş
-// değil, gerçek ve güncel bir yanıt verilir.
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "get_last_match_result",
@@ -58,7 +51,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "get_league_standing",
     description:
-      "Tunaspor 1954'ün oynadığı ligdeki güncel puan durumundaki sırasını, puanını ve maç istatistiklerini döner. Kullanıcı 'ligde kaçıncısınız', 'puan durumu nedir' gibi bir şey sorduğunda bu aracı kullan.",
+     "Tunaspor 1954'ün oynadığı ligdeki güncel puan durumundaki sırasını, puanını ve maç istatistiklerini döner. Kullanıcı 'ligde kaçıncısınız', 'puan durumu nedir' gibi bir şey sorduğunda bu aracı kullan.",
     input_schema: { type: "object", properties: {} },
   },
 ];
@@ -100,7 +93,7 @@ async function executeTool(name: string, input: any): Promise<string> {
     const { data } = await query.limit(5);
     if (!data?.length) return "Şu anda bu türde planlanmış, yaklaşan bir etkinlik bulunmuyor. Yeni duyurular için Etkinlikler sayfasını takip etmesini öner.";
     return data
-      .map((e) => `${e.title} — ${new Date(e.start_date).toLocaleDateString("tr-TR")}${e.location ? `, ${e.location}` : ""}. Kayıt durumu: ${e.registration_open ? "açık (web sitesindeki Etkinlikler sayfasından başvurulabilir)" : "henüz açılmadı"}.`)
+      .map((e: any) => `${e.title} — ${new Date(e.start_date).toLocaleDateString("tr-TR")}${e.location ? `, ${e.location}` : ""}. Kayıt durumu: ${e.registration_open ? "açık (web sitesindeki Etkinlikler sayfasından başvurulabilir)" : "henüz açılmadı"}.`)
       .join("\n");
   }
 
@@ -138,14 +131,13 @@ export async function POST(req: NextRequest) {
     .single();
 
   const knowledgeText = (knowledge ?? [])
-    .map((k) => `## ${k.topic}\n${k.content}`)
+    .map((k: any) => `## ${k.topic}\n${k.content}`)
     .join("\n\n");
 
   const contactText = contactInfo
     ? `## Güncel İletişim Bilgileri\nAdres: ${contactInfo.address ?? "belirtilmedi"}\nTelefon: ${contactInfo.phone ?? "belirtilmedi"}\nWhatsApp: ${contactInfo.whatsapp_number ?? "belirtilmedi"}\nE-posta: ${contactInfo.email ?? "belirtilmedi"}\nInstagram: ${contactInfo.instagram_url ?? "-"}`
     : "";
 
-  // Değişmeyen, her zaman doğru sabit bilgiler — tool'a gerek kalmadan direkt yanıtlanabilir.
   const staticFactsText = `## Akademi Yaş Kategorileri (sabit bilgi)
 Tunaspor 1954 Akademi, U9'dan U18'e kadar 10 yaş kategorisinde faaliyet gösterir: U9, U10, U11, U12, U13, U14, U15, U16, U17, U18. Ayrıca A Takım (yetişkin) ve Kadın Takımı bulunur. Akademiye kayıt için doğum yılına göre uygun kategoriye yönlendir; kesin kayıt/seçme tarihleri için get_camp_or_event_schedule aracını kullan.`;
 
@@ -183,8 +175,6 @@ ${contactText}`;
       messages: userMessages,
     });
 
-    // Tool-use döngüsü: model bir veya daha fazla araç çağırmak isteyebilir.
-    // Sonucu ekleyip modele geri gönderiyoruz, o da nihai metni üretiyor.
     let loopGuard = 0;
     const conversationMessages = [...userMessages];
 
@@ -211,7 +201,7 @@ ${contactText}`;
     }
 
     const reply = response.content
-      .map((block) => (block.type === "text" ? block.text : ""))
+      .map((block: any) => (block.type === "text" ? block.text : ""))
       .join("\n");
 
     return NextResponse.json({ reply: reply || "Bu konuda şu an net bir bilgim yok, WhatsApp üzerinden kulübe ulaşabilirsin." });

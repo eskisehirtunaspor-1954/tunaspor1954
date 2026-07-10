@@ -18,26 +18,29 @@ export async function GET(req: NextRequest) {
 
   const rows = views30d ?? [];
   const totalViews = rows.length;
-  const uniqueSessions = new Set(rows.map((r) => r.session_id)).size;
+  const uniqueSessions = new Set(rows.map((r: any) => r.session_id)).size;
 
   const todayRows = todayViews ?? [];
   const todayViewCount = todayRows.length;
-  const todayUniqueVisitors = new Set(todayRows.map((r) => r.session_id)).size;
+  const todayUniqueVisitors = new Set(todayRows.map((r: any) => r.session_id)).size;
 
-  const byPath = rows.reduce<Record<string, number>>((acc, r) => {
-    acc[r.path] = (acc[r.path] ?? 0) + 1;
-    return acc;
-  }, {});
-  const topPages = Object.entries(byPath)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([path, count]) => ({ path, count }));
+  const byPath: Record<string, number> = {};
+  for (const r of rows as any[]) {
+    byPath[r.path] = (byPath[r.path] ?? 0) + 1;
+  }
 
-  const deviceSplit = rows.reduce<Record<string, number>>((acc, r) => {
+  const pathEntries: [string, number][] = [];
+  for (const key in byPath) {
+    pathEntries.push([key, byPath[key] ?? 0]);
+  }
+  pathEntries.sort((a, b) => b[1] - a[1]);
+  const topPages = pathEntries.slice(0, 10).map(([path, count]) => ({ path, count }));
+
+  const deviceSplit: Record<string, number> = {};
+  for (const r of rows as any[]) {
     const key = r.device_type ?? "unknown";
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
+    deviceSplit[key] = (deviceSplit[key] ?? 0) + 1;
+  }
 
   const { data: topNews } = await supabase
     .from("news")

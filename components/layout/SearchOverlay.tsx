@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, X, Newspaper, User, Shield, Loader2 } from "lucide-react";
-
+import { Search, X, Newspaper, User, Shield, Loader2, type LucideIcon } from "lucide-react";
 interface Results {
   news: { id: string; slug: string; title: string; excerpt: string | null }[];
   players: { id: string; full_name: string; position: string | null; teams: { category: string; display_name: string } | null }[];
@@ -114,7 +113,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   );
 }
 
-function ResultGroup({ icon: Icon, label, children }: { icon: React.ComponentType<{ size?: number }>; label: string; children: React.ReactNode }) {
+function ResultGroup({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-white/5 last:border-0">
       <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs text-tuna-mist uppercase tracking-wide">
