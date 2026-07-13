@@ -1,4 +1,3 @@
-import dynamic from "next/dynamic";
 import { Hero } from "@/components/home/Hero";
 import { NextMatchCard } from "@/components/home/NextMatchCard";
 import { EskisehirInfoPanel } from "@/components/home/EskisehirInfoPanel";
@@ -10,16 +9,6 @@ import { T } from "@/components/layout/T";
 import { StickyCtaBar } from "@/components/home/StickyCtaBar";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-
-// Leaflet window nesnesine ihtiyaç duyar — yalnızca istemci tarafında render edilir.
-const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.ClubMap), {
-  ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
-});
-
-function directionsUrl(query: string) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
-}
 
 export default async function HomePage() {
   const supabase = createClient();
@@ -40,23 +29,6 @@ export default async function HomePage() {
       .eq("is_published", true).not("teams.category", "in", '("a_takim","kadin_takimi")'),
     supabase.from("contact_info").select("*").eq("id", 1).single(),
   ]);
-
-  const locations = [
-    {
-      key: "kulup",
-      name: "Kulüp Binası",
-      address: contactInfo?.address,
-      lat: contactInfo?.map_lat,
-      lng: contactInfo?.map_lng,
-    },
-    {
-      key: "saha",
-      name: contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası",
-      address: contactInfo?.saha_address,
-      lat: contactInfo?.saha_map_lat,
-      lng: contactInfo?.saha_map_lng,
-    },
-  ].filter((l) => l.lat && l.lng);
 
   const foundedYear = siteSettings?.founded_year ?? 1954;
   const clubAge = new Date().getFullYear() - foundedYear;
@@ -209,38 +181,6 @@ export default async function HomePage() {
           ))}
         </StaggerGrid>
       </section>
-
-      {/* KONUMLARIMIZ — Kulüp Binası + Saha, tıklanınca Google Haritalar'da yol tarifi */}
-      {locations.length > 0 && (
-        <ScrollReveal variant="fadeUp">
-        <section className="max-w-6xl mx-auto px-4 py-16">
-          <h2 className="font-display text-3xl mb-8 text-center">Konumlarımız</h2>
-          <div className="grid gap-6 md:grid-cols-2">
-            {locations.map((loc) => (
-              <div key={loc.key} className="glass-panel overflow-hidden">
-                <div className="aspect-video w-full">
-                  <ClubMap lat={Number(loc.lat)} lng={Number(loc.lng)} label={loc.name} />
-                </div>
-                <div className="p-5 flex items-center justify-between gap-3 flex-wrap">
-                  <div>
-                    <h3 className="font-semibold">{loc.name}</h3>
-                    {loc.address && <p className="text-xs text-tuna-mist">{loc.address}</p>}
-                  </div>
-                  <a
-                    href={directionsUrl(loc.address || `${loc.lat},${loc.lng}`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 text-sm border border-tuna-gold/40 text-tuna-gold px-4 py-2 rounded-full hover:bg-tuna-gold/10 hover:border-tuna-gold transition-colors"
-                  >
-                    🧭 Yol Tarifi Al
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        </ScrollReveal>
-      )}
 
       {/* İLETİŞİM CTA */}
       <ScrollReveal variant="fadeUp">

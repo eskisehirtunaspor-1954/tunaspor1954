@@ -1,9 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Instagram, Facebook, Youtube, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { VisitorCounter } from "@/components/home/VisitorCounter";
+
+// Leaflet window nesnesine ihtiyaç duyar — yalnızca istemci tarafında render edilir.
+const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.ClubMap), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
+});
 
 // Kulübün gerçek sosyal medya adresleri — admin panelinden (İletişim Bilgileri)
 // override edilmezse bu varsayılan gerçek linkler kullanılır.
@@ -15,6 +22,64 @@ interface ContactInfo {
   instagram_url?: string | null;
   facebook_url?: string | null;
   youtube_url?: string | null;
+  address?: string | null;
+  map_lat?: number | null;
+  map_lng?: number | null;
+  saha_name?: string | null;
+  saha_address?: string | null;
+  saha_map_lat?: number | null;
+  saha_map_lng?: number | null;
+}
+
+function directionsUrl(query: string) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+}
+
+function openInMapsUrl(query: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function LocationCard({ name, address, lat, lng }: { name: string; address?: string | null; lat?: number | null; lng?: number | null }) {
+  const hasCoords = Boolean(lat && lng);
+  const query = hasCoords ? `${lat},${lng}` : address || "";
+
+  return (
+    <div className="glass-panel overflow-hidden">
+      <div className="aspect-video w-full">
+        {hasCoords ? (
+          <ClubMap lat={Number(lat)} lng={Number(lng)} label={name} />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-white/5 text-center text-sm text-tuna-mist px-4">
+            Konum yakında eklenecek
+          </div>
+        )}
+      </div>
+      <div className="p-4">
+        <h4 className="font-semibold text-sm mb-1">{name}</h4>
+        {address && <p className="text-xs text-tuna-mist mb-3">{address}</p>}
+        {hasCoords && (
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={directionsUrl(query)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs border border-tuna-gold/40 text-tuna-gold px-3 py-1.5 rounded-full hover:bg-tuna-gold/10 hover:border-tuna-gold transition-colors"
+            >
+              🧭 Yol Tarifi Al
+            </a>
+            <a
+              href={openInMapsUrl(query)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs border border-white/15 text-tuna-mist px-3 py-1.5 rounded-full hover:border-white/30 hover:text-white transition-colors"
+            >
+              Google Maps'te Aç
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
@@ -27,6 +92,25 @@ export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
 
   return (
     <footer className="relative z-20 border-t border-white/10 mt-24 bg-tuna-charcoal">
+      {/* KONUMLARIMIZ — Kulüp Binası + Saha, her zaman görünür */}
+      <div className="max-w-7xl mx-auto px-4 pt-12">
+        <h3 className="eyebrow mb-4">Konumlarımız</h3>
+        <div className="grid gap-6 md:grid-cols-2">
+          <LocationCard
+            name="Tunaspor 1954 Kulüp Binası"
+            address={contactInfo?.address}
+            lat={contactInfo?.map_lat}
+            lng={contactInfo?.map_lng}
+          />
+          <LocationCard
+            name={contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası"}
+            address={contactInfo?.saha_address}
+            lat={contactInfo?.saha_map_lat}
+            lng={contactInfo?.saha_map_lng}
+          />
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 py-12 grid gap-10 md:grid-cols-4">
         <div>
           <h3 className="font-display text-2xl text-tuna-yellow mb-2">TUNASPOR 1954</h3>
