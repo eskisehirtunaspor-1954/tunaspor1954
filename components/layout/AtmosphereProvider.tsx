@@ -22,6 +22,23 @@ const AtmosphereContext = createContext<AtmosphereContextValue>({
   toggleSound: () => {},
 });
 
+// Ses hiçbir zaman sayfa yüklenir yüklenmez başlamamalı — yalnızca kullanıcının
+// ilk gerçek etkileşiminden (tık/tuş/dokunuş) sonra "kilidi açılır". Bu hem
+// spesifikasyonun istediği davranış hem de tarayıcıların autoplay policy'si
+// yüzünden zaten kullanıcı jesti olmadan sessiz kalan AudioContext'lerin
+// gereksiz yere oluşturulmasını önler.
+function useHasInteracted(): boolean {
+  const [hasInteracted, setHasInteracted] = useState(false);
+  useEffect(() => {
+    if (hasInteracted) return;
+    const unlock = () => setHasInteracted(true);
+    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart"];
+    events.forEach((ev) => window.addEventListener(ev, unlock, { once: true, passive: true }));
+    return () => events.forEach((ev) => window.removeEventListener(ev, unlock));
+  }, [hasInteracted]);
+  return hasInteracted;
+}
+
 export const useAtmosphere = () => useContext(AtmosphereContext);
 
 // Dört farklı zaman dilimi — her biri kendine özgü ses/görsel karaktere sahip:
@@ -66,6 +83,8 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   // bu tek anahtara bağlı) — kullanıcının tercihi sayfalar arası gezinirken korunsun
   // diye localStorage'a yazılır.
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [siteSoundEnabled, setSiteSoundEnabled] = useState(true);
+  const hasInteracted = useHasInteracted();
 
   useEffect(() => {
     setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") === "on");
@@ -85,6 +104,7 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
       .then((d) => {
         if (d?.atmosphere_mode) setAtmosphereOverride(d.atmosphere_mode);
         if (d?.weather_mode) setWeatherOverride(d.weather_mode);
+        if (typeof d?.ambient_sound_enabled === "boolean") setSiteSoundEnabled(d.ambient_sound_enabled);
       })
       .catch(() => {});
   }, []);
@@ -115,12 +135,17 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   const atmosphere = atmosphereOverride === "otomatik" ? autoAtmosphere : atmosphereOverride;
   const weatherMode = weatherOverride === "otomatik" ? autoWeather : weatherOverride;
 
+  // Ses üç kapıdan birden geçmeli: kullanıcı kendi tercihiyle açmış olmalı, en az
+  // bir kez sayfayla etkileşime girmiş olmalı (autoplay yok) ve Süper Admin site
+  // genelinde ortam seslerini kapatmamış olmalı.
+  const effectiveSoundEnabled = soundEnabled && hasInteracted && siteSoundEnabled;
+
   // Value nesnesi memoize edilmezse her render'da yeni bir referans oluşur ve
   // bu context'i dinleyen TÜM bileşenler (StadiumBackground, WeatherEffects,
   // Hero, LightningSystem, AmbientSoundscape...) gereksiz yere yeniden render olur.
   const value = useMemo(
-    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled, toggleSound }),
-    [atmosphere, weatherMode, specialMoment, soundEnabled]
+    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled: effectiveSoundEnabled, toggleSound }),
+    [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled]
   );
 
   return (

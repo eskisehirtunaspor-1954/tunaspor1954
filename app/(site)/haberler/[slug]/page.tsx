@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { FileText } from "lucide-react";
 import { ShareButtons } from "@/components/home/ShareButtons";
 import { T } from "@/components/layout/T";
 
@@ -38,6 +39,12 @@ export default async function NewsDetailPage({ params }: Props) {
     await service.from("news").update({ view_count: article.view_count + 1 }).eq("id", article.id);
   } catch {}
 
+  const { data: attachments } = await createClient()
+    .from("news_attachments")
+    .select("id, file_url, file_name")
+    .eq("news_id", article.id)
+    .order("created_at", { ascending: true });
+
   return (
     <article className="max-w-3xl mx-auto px-4 py-20">
       <T k="page_news_detail_eyebrow" as="p" className="eyebrow mb-3" />
@@ -55,6 +62,29 @@ export default async function NewsDetailPage({ params }: Props) {
       <div className="prose prose-invert max-w-none text-tuna-mist leading-relaxed whitespace-pre-line">
         {article.content}
       </div>
+      {article.video_url && (
+        <video src={article.video_url} controls className="mt-8 w-full rounded-2xl bg-black" />
+      )}
+      {!!attachments?.length && (
+        <div className="mt-8">
+          <h2 className="font-display text-xl mb-3">Belgeler</h2>
+          <ul className="space-y-2">
+            {attachments.map((a) => (
+              <li key={a.id}>
+                <a
+                  href={a.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-tuna-gold hover:underline"
+                >
+                  <FileText size={16} />
+                  {a.file_name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   );
 }

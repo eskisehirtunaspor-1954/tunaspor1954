@@ -13,7 +13,7 @@ export default function Page() {
         { name: "meta_title", label: "Meta Başlık" },
         { name: "meta_description", label: "Meta Açıklama", type: "textarea" },
         { name: "keywords", label: "Anahtar Kelimeler" },
-        { name: "og_image_url", label: "Open Graph Görsel URL" },
+        { name: "og_image_url", label: "Open Graph Görsel", type: "image", folder: "seo" },
         { name: "twitter_card", label: "Twitter Card Türü" },
       ]}
     />

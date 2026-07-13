@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { T } from "@/components/layout/T";
-import { PlayerCard } from "@/components/site/PlayerCard";
+import { PlayerCard, EmptyPlayerCard } from "@/components/site/PlayerCard";
 
 interface Props { params: { category: string } }
 
@@ -116,7 +116,8 @@ export default async function TeamDetailPage({ params }: Props) {
           {(players ?? []).map((p) => (
             <PlayerCard key={p.id} player={p} />
           ))}
-          {!players?.length && <T k="empty_roster" as="p" className="text-tuna-mist col-span-full" />}
+          {!players?.length &&
+            Array.from({ length: 6 }, (_, i) => <EmptyPlayerCard key={i} />)}
         </div>
       </section>
 

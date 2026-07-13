@@ -10,7 +10,7 @@ export default function Page() {
       subtitleField="tier"
       fields={[
         { name: "name", label: "Sponsor Adı", required: true },
-        { name: "logo_url", label: "Logo URL", required: true },
+        { name: "logo_url", label: "Logo", type: "image", folder: "sponsors", required: true },
         { name: "website_url", label: "Web Sitesi" },
         { name: "tier", label: "Seviye", type: "select", required: true, options: [
           { value: "ana_sponsor", label: "Ana Sponsor" },

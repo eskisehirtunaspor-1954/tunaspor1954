@@ -1,6 +1,13 @@
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "@/components/home/ContactForm";
 import { T } from "@/components/layout/T";
+
+// Leaflet window nesnesine ihtiyaç duyar — yalnızca istemci tarafında render edilir.
+const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.ClubMap), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
+});
 
 export const metadata = { title: "İletişim" };
 
@@ -11,10 +18,9 @@ export default async function IletisimPage() {
   const whatsappNumber = info?.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
   // Harita hedefi: koordinat girilmişse en hassas sonucu verir, yoksa adres
-  // metniyle arama yapılır — ikisi de aynı embed/yön tarifi URL şemasını kullanır.
+  // metniyle arama yapılır.
   const hasCoords = Boolean(info?.map_lat && info?.map_lng);
   const mapQuery = hasCoords ? `${info.map_lat},${info.map_lng}` : info?.address;
-  const mapsEmbedSrc = mapQuery ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed` : null;
   // Bu standart Google Maps URL şeması mobil cihazlarda otomatik olarak Google Maps
   // uygulamasına yönlenir (iOS/Android universal link) — ayrı user-agent algılaması gerekmez.
   const directionsHref = mapQuery ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapQuery)}` : null;
@@ -52,14 +58,9 @@ export default async function IletisimPage() {
             </a>
           )}
         </div>
-        {mapsEmbedSrc && (
-          <div className="mt-8 rounded-2xl overflow-hidden aspect-video w-full">
-            <iframe
-              className="w-full h-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              src={mapsEmbedSrc}
-            />
+        {hasCoords && (
+          <div className="mt-8 aspect-video w-full overflow-hidden rounded-2xl">
+            <ClubMap lat={Number(info.map_lat)} lng={Number(info.map_lng)} label="Tunaspor 1954" />
           </div>
         )}
       </div>

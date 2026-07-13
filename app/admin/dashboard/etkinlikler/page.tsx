@@ -23,7 +23,7 @@ export default function Page() {
         { name: "location", label: "Konum" },
         { name: "capacity", label: "Kontenjan", type: "number" },
         { name: "price", label: "Ücret", type: "number" },
-        { name: "cover_image_url", label: "Kapak Görseli URL" },
+        { name: "cover_image_url", label: "Kapak Görseli", type: "image", folder: "events" },
         { name: "registration_open", label: "Kayıt Açık", type: "checkbox" },
       ]}
     />

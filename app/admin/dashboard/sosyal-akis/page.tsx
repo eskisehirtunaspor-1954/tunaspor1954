@@ -23,7 +23,7 @@ export default function Page() {
             { value: "twitter", label: "X (Twitter)" },
             { value: "tiktok", label: "TikTok" },
           ]},
-          { name: "image_url", label: "Görsel URL", required: true },
+          { name: "image_url", label: "Görsel", type: "image", folder: "social", required: true },
           { name: "caption", label: "Açıklama" },
           { name: "post_url", label: "Gerçek Gönderi URL (tıklanınca gidilecek)", required: true },
           { name: "likes_count", label: "Beğeni Sayısı (kozmetik)", type: "number" },

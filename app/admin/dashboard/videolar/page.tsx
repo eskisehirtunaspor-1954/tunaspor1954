@@ -7,11 +7,11 @@ export default function Page() {
       apiPath="/api/admin/videos"
       title="Videolar (Tunaspor TV+)"
       titleField="title"
-      subtitleField="youtube_id"
+      subtitleField="category"
       fields={[
         { name: "title", label: "Video Başlığı", required: true },
         { name: "description", label: "Açıklama", type: "textarea" },
-        { name: "youtube_id", label: "YouTube Video ID", required: true },
+        { name: "video_url", label: "Video Dosyası", type: "video", folder: "videos-tv", required: true },
         { name: "category", label: "Kategori", type: "select", required: true,
           options: [
             { value: "mac_ozeti", label: "Maç Özeti" },

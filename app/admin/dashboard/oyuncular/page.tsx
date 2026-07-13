@@ -20,7 +20,19 @@ export default function Page() {
     { name: "height_cm", label: "Boy (cm)", type: "number" },
     { name: "weight_kg", label: "Kilo (kg)", type: "number" },
     { name: "nationality", label: "Uyruk" },
-    { name: "photo_url", label: "Fotoğraf URL" },
+    { name: "photo_url", label: "Fotoğraf", type: "image" },
+    { name: "license_no", label: "Lisans Numarası" },
+    {
+      name: "preferred_foot",
+      label: "Ayak Tercihi",
+      type: "select",
+      options: [
+        { value: "sag", label: "Sağ" },
+        { value: "sol", label: "Sol" },
+        { value: "cift", label: "Çift" },
+      ],
+    },
+    { name: "joined_at", label: "Takıma Katılış Tarihi", type: "date" },
     { name: "bio", label: "Biyografi", type: "textarea" },
     { name: "is_published", label: "Yayınla", type: "checkbox" },
   ];

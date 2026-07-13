@@ -37,13 +37,18 @@ export default async function TvPage() {
             <h2 className="font-display text-2xl">Canlı Yayın</h2>
           </div>
           <div className="glass-panel overflow-hidden aspect-video">
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube.com/embed/${live[0].youtube_id}?autoplay=0`}
-              title={live[0].title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            {live[0].video_url ? (
+              <video src={live[0].video_url} controls className="w-full h-full bg-black" />
+            ) : (
+              // Eski kayıtlar (yalnızca YouTube ID ile eklenmiş) geriye dönük uyumlu çalışmaya devam eder.
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${live[0].youtube_id}?autoplay=0`}
+                title={live[0].title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            )}
           </div>
         </section>
       )}
@@ -57,13 +62,18 @@ export default async function TvPage() {
               {items.map((v) => (
                 <div key={v.id} className="glass-panel overflow-hidden">
                   <div className="aspect-video">
-                    <iframe
-                      className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${v.youtube_id}`}
-                      title={v.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                    {v.video_url ? (
+                      <video src={v.video_url} controls className="w-full h-full bg-black" />
+                    ) : (
+                      // Eski kayıtlar (yalnızca YouTube ID ile eklenmiş) geriye dönük uyumlu çalışmaya devam eder.
+                      <iframe
+                        className="w-full h-full"
+                        src={`https://www.youtube.com/embed/${v.youtube_id}`}
+                        title={v.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )}
                   </div>
                   <div className="p-4">
                     <p className="font-medium">{v.title}</p>

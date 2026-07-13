@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ImageUpload } from "@/components/admin/ImageUpload";
+import { VideoUpload } from "@/components/admin/VideoUpload";
 
 export interface FieldDef {
   name: string;
   label: string;
-  type?: "text" | "textarea" | "checkbox" | "number" | "date" | "datetime-local" | "select";
+  type?: "text" | "textarea" | "checkbox" | "number" | "date" | "datetime-local" | "select" | "image" | "video";
   options?: { value: string; label: string }[];
   required?: boolean;
+  /** yalnızca type: "image"/"video" için — Storage'da dosyaların saklanacağı klasör adı */
+  folder?: string;
 }
 
 interface Props {
@@ -106,6 +110,30 @@ export function GenericCrudManager({ apiPath, title, fields, titleField, subtitl
                   onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
                   className="md:col-span-2 bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
                 />
+              );
+            }
+            if (f.type === "image") {
+              return (
+                <div key={f.name} className="md:col-span-2">
+                  <label className="mb-1 block text-xs text-tuna-mist">{f.label}</label>
+                  <ImageUpload
+                    folder={f.folder ?? apiPath.split("/").filter(Boolean).pop() ?? "misc"}
+                    value={form[f.name] || null}
+                    onChange={(url) => setForm({ ...form, [f.name]: url ?? "" })}
+                  />
+                </div>
+              );
+            }
+            if (f.type === "video") {
+              return (
+                <div key={f.name} className="md:col-span-2">
+                  <label className="mb-1 block text-xs text-tuna-mist">{f.label}</label>
+                  <VideoUpload
+                    folder={f.folder ?? apiPath.split("/").filter(Boolean).pop() ?? "misc"}
+                    value={form[f.name] || null}
+                    onChange={(url) => setForm({ ...form, [f.name]: url ?? "" })}
+                  />
+                </div>
               );
             }
             if (f.type === "select") {

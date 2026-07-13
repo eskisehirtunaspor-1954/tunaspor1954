@@ -17,7 +17,7 @@ export default function Page() {
             { value: "tisort", label: "Tişört" },
           ] },
         { name: "price", label: "Fiyat (₺)", type: "number", required: true },
-        { name: "image_url", label: "Görsel URL" },
+        { name: "image_url", label: "Görsel", type: "image", folder: "products" },
         { name: "stock", label: "Stok Adedi", type: "number", required: true },
         { name: "is_published", label: "Yayınla", type: "checkbox" },
       ]}

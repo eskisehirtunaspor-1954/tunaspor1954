@@ -17,7 +17,7 @@ export default function Page() {
         { name: "coach_name", label: "Antrenör Adı" },
         { name: "description", label: "Açıklama", type: "textarea" },
         { name: "founded_year", label: "Kuruluş Yılı", type: "number" },
-        { name: "cover_image_url", label: "Kapak Görseli URL" },
+        { name: "cover_image_url", label: "Kapak Görseli", type: "image", folder: "teams" },
         { name: "is_published", label: "Yayınla", type: "checkbox" },
       ]}
     />

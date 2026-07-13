@@ -1,7 +1,33 @@
 "use client";
+import { useEffect, useState } from "react";
 import { GenericCrudManager } from "@/components/admin/GenericCrudManager";
+import { BulkImageUpload } from "@/components/admin/BulkImageUpload";
+
+interface Album {
+  id: string;
+  title: string;
+}
 
 export default function Page() {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [bulkAlbumId, setBulkAlbumId] = useState("");
+  const [photosKey, setPhotosKey] = useState(0);
+
+  function loadAlbums() {
+    fetch("/api/admin/gallery-albums")
+      .then((r) => r.json())
+      .then((d) => setAlbums(d.data ?? []));
+  }
+  useEffect(() => { loadAlbums(); }, []);
+
+  async function handleUploaded(url: string) {
+    await fetch("/api/admin/gallery-photos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ album_id: bulkAlbumId, image_url: url }),
+    });
+  }
+
   return (
     <div>
       <GenericCrudManager
@@ -16,25 +42,49 @@ export default function Page() {
             { value: "fotograf", label: "Fotoğraf" },
             { value: "drone", label: "Drone Görüntüsü" },
           ]},
-          { name: "cover_image_url", label: "Kapak Görseli URL" },
+          { name: "cover_image_url", label: "Kapak Görseli", type: "image", folder: "gallery" },
           { name: "is_published", label: "Yayınla", type: "checkbox" },
         ]}
       />
+
       <div className="max-w-6xl mx-auto px-4">
-        <p className="text-sm text-tuna-mist glass-panel p-4 mb-4">
-          Bir albüme birden fazla fotoğraf eklemek için aşağıya albümün ID'sini
-          (yukarıdaki listede "Düzenle"ye basınca formda görünür) ve fotoğraf
-          URL'lerini girin — bu fotoğraflar galeri sayfasında lightbox içinde sırayla açılır.
-        </p>
+        <div className="glass-panel p-6 mb-4 space-y-3">
+          <h2 className="font-semibold">Çoklu Fotoğraf Yükle</h2>
+          <p className="text-sm text-tuna-mist">
+            Bir albüm seçip birden fazla fotoğrafı aynı anda sürükleyip bırakabilirsiniz —
+            her biri otomatik olarak seçili albüme eklenir.
+          </p>
+          <select
+            value={bulkAlbumId}
+            onChange={(e) => setBulkAlbumId(e.target.value)}
+            className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
+          >
+            <option value="">Albüm seçin</option>
+            {albums.map((a) => (
+              <option key={a.id} value={a.id}>{a.title}</option>
+            ))}
+          </select>
+          <BulkImageUpload
+            folder="gallery"
+            disabled={!bulkAlbumId}
+            disabledHint="Fotoğraf yüklemeden önce yukarıdan bir albüm seçin."
+            onEachUploaded={async (url) => {
+              await handleUploaded(url);
+              setPhotosKey((k) => k + 1);
+            }}
+          />
+        </div>
       </div>
+
       <GenericCrudManager
+        key={photosKey}
         apiPath="/api/admin/gallery-photos"
         title="Albüm Fotoğrafları"
         titleField="image_url"
         subtitleField="caption"
         fields={[
           { name: "album_id", label: "Albüm ID (uuid)", required: true },
-          { name: "image_url", label: "Fotoğraf URL", required: true },
+          { name: "image_url", label: "Fotoğraf", type: "image", folder: "gallery", required: true },
           { name: "caption", label: "Açıklama" },
           { name: "sort_order", label: "Sıralama", type: "number" },
         ]}

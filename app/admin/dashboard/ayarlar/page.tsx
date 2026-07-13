@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ImageUpload } from "@/components/admin/ImageUpload";
 
 interface SiteSettings {
   site_name?: string; logo_url?: string; primary_color?: string;
   maintenance_mode?: boolean; founded_year?: number;
   atmosphere_mode?: string; weather_mode?: string; achievements_count?: number;
   lightning_intensity?: string; intro_mode?: string;
+  ambient_sound_enabled?: boolean;
 }
 
 export default function Page() {
@@ -37,11 +39,14 @@ export default function Page() {
           onChange={(e) => setSettings({ ...settings, site_name: e.target.value })}
           className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-gold"
         />
-        <input
-          placeholder="Logo URL" value={settings.logo_url ?? ""}
-          onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })}
-          className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-gold"
-        />
+        <div>
+          <label className="mb-1 block text-xs text-tuna-mist">Kulüp Logosu</label>
+          <ImageUpload
+            folder="branding"
+            value={settings.logo_url ?? null}
+            onChange={(url) => setSettings({ ...settings, logo_url: url ?? "" })}
+          />
+        </div>
         <input
           type="color" value={settings.primary_color ?? "#FFD700"}
           onChange={(e) => setSettings({ ...settings, primary_color: e.target.value })}
@@ -119,6 +124,13 @@ export default function Page() {
           </select>
         </div>
 
+        <label className="flex items-center gap-2 text-sm pt-2">
+          <input
+            type="checkbox" checked={settings.ambient_sound_enabled ?? true}
+            onChange={(e) => setSettings({ ...settings, ambient_sound_enabled: e.target.checked })}
+          />
+          Ortam Sesleri (site geneli — kapatılırsa hiçbir ziyaretçide atmosfer sesi çalmaz)
+        </label>
         <label className="flex items-center gap-2 text-sm pt-2">
           <input
             type="checkbox" checked={!!settings.maintenance_mode}

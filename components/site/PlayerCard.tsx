@@ -1,4 +1,4 @@
-import { User } from "lucide-react";
+import { User, Shirt } from "lucide-react";
 
 export interface PlayerCardData {
   id: string;
@@ -9,13 +9,24 @@ export interface PlayerCardData {
   height_cm?: number | null;
   weight_kg?: number | null;
   photo_url?: string | null;
+  license_no?: string | null;
+  preferred_foot?: "sag" | "sol" | "cift" | null;
+  joined_at?: string | null;
 }
 
+const FOOT_LABEL: Record<string, string> = { sag: "Sağ", sol: "Sol", cift: "Çift" };
+
 // U kategorileri kadro listesi için premium oyuncu kartı: foto, forma no,
-// doğum yılı, boy/kilo, mevki. Fotoğraf yoksa lucide User ikonuyla zarif bir
-// placeholder gösterilir — kırık img yerine tutarlı bir görünüm sağlar.
+// doğum tarihi, boy/kilo, mevki, lisans no, ayak tercihi, takıma katılış tarihi.
+// Fotoğraf yoksa lucide User ikonuyla zarif bir placeholder gösterilir — kırık
+// img yerine tutarlı bir görünüm sağlar.
 export function PlayerCard({ player }: { player: PlayerCardData }) {
-  const birthYear = player.birth_date ? new Date(player.birth_date).getFullYear() : null;
+  const birthDate = player.birth_date
+    ? new Date(player.birth_date).toLocaleDateString("tr-TR")
+    : null;
+  const joinedDate = player.joined_at
+    ? new Date(player.joined_at).toLocaleDateString("tr-TR")
+    : null;
 
   return (
     <div className="glass-panel group relative overflow-hidden rounded-2xl p-0 text-center transition-all hover:border-tuna-gold/60 hover:shadow-goldGlow">
@@ -41,11 +52,33 @@ export function PlayerCard({ player }: { player: PlayerCardData }) {
       <div className="p-3">
         <p className="truncate text-sm font-semibold">{player.full_name}</p>
         {player.position && <p className="text-xs text-tuna-gold">{player.position}</p>}
-        <div className="mt-2 flex justify-center gap-3 text-[11px] text-tuna-mist">
-          {birthYear && <span>{birthYear}</span>}
+        <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-tuna-mist">
+          {birthDate && <span>{birthDate}</span>}
           {player.height_cm && <span>{player.height_cm} cm</span>}
           {player.weight_kg && <span>{player.weight_kg} kg</span>}
+          {player.preferred_foot && <span>{FOOT_LABEL[player.preferred_foot]} ayak</span>}
         </div>
+        {(player.license_no || joinedDate) && (
+          <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px] text-tuna-mist/70">
+            {player.license_no && <span>Lisans: {player.license_no}</span>}
+            {joinedDate && <span>Katılış: {joinedDate}</span>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Oyuncu henüz eklenmemiş forma yuvaları için sessiz, premium bir placeholder —
+// metinsel "kadro boş" mesajı yerine kadronun dolacağı hissi verir.
+export function EmptyPlayerCard() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-white/10 p-0 text-center">
+      <div className="aspect-[3/4] w-full flex items-center justify-center bg-white/[0.02]">
+        <Shirt size={40} className="text-white/10" />
+      </div>
+      <div className="p-3">
+        <p className="text-xs text-tuna-mist/50">Oyuncu eklenmedi</p>
       </div>
     </div>
   );

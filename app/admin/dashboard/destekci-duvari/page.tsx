@@ -10,7 +10,7 @@ export default function Page() {
       subtitleField="message"
       fields={[
         { name: "supporter_name", label: "İsim / Kurum", required: true },
-        { name: "supporter_logo_url", label: "Logo URL" },
+        { name: "supporter_logo_url", label: "Logo", type: "image", folder: "supporters" },
         { name: "message", label: "Mesaj", type: "textarea", required: true },
         { name: "is_approved", label: "Onaylandı (yayınla)", type: "checkbox" },
       ]}

@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import { Hero } from "@/components/home/Hero";
 import { NextMatchCard } from "@/components/home/NextMatchCard";
 import { EskisehirInfoPanel } from "@/components/home/EskisehirInfoPanel";
@@ -10,12 +11,23 @@ import { StickyCtaBar } from "@/components/home/StickyCtaBar";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
+// Leaflet window nesnesine ihtiyaç duyar — yalnızca istemci tarafında render edilir.
+const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.ClubMap), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
+});
+
+function directionsUrl(query: string) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+}
+
 export default async function HomePage() {
   const supabase = createClient();
 
   const [
     { data: news }, { data: teams }, { data: sponsors }, { data: albums },
     { data: siteSettings }, { count: playerCount }, { count: teamCount }, { count: academyPlayerCount },
+    { data: contactInfo },
   ] = await Promise.all([
     supabase.from("news").select("id, slug, title, excerpt, cover_image_url").eq("is_published", true).order("published_at", { ascending: false }).limit(3),
     supabase.from("teams").select("id, category, display_name, cover_image_url").eq("is_published", true).order("category"),
@@ -26,7 +38,25 @@ export default async function HomePage() {
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("is_published", true),
     supabase.from("players").select("id, teams!inner(category)", { count: "exact", head: true })
       .eq("is_published", true).not("teams.category", "in", '("a_takim","kadin_takimi")'),
+    supabase.from("contact_info").select("*").eq("id", 1).single(),
   ]);
+
+  const locations = [
+    {
+      key: "kulup",
+      name: "Kulüp Binası",
+      address: contactInfo?.address,
+      lat: contactInfo?.map_lat,
+      lng: contactInfo?.map_lng,
+    },
+    {
+      key: "saha",
+      name: contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası",
+      address: contactInfo?.saha_address,
+      lat: contactInfo?.saha_map_lat,
+      lng: contactInfo?.saha_map_lng,
+    },
+  ].filter((l) => l.lat && l.lng);
 
   const foundedYear = siteSettings?.founded_year ?? 1954;
   const clubAge = new Date().getFullYear() - foundedYear;
@@ -180,17 +210,56 @@ export default async function HomePage() {
         </StaggerGrid>
       </section>
 
+      {/* KONUMLARIMIZ — Kulüp Binası + Saha, tıklanınca Google Haritalar'da yol tarifi */}
+      {locations.length > 0 && (
+        <ScrollReveal variant="fadeUp">
+        <section className="max-w-6xl mx-auto px-4 py-16">
+          <h2 className="font-display text-3xl mb-8 text-center">Konumlarımız</h2>
+          <div className="grid gap-6 md:grid-cols-2">
+            {locations.map((loc) => (
+              <div key={loc.key} className="glass-panel overflow-hidden">
+                <div className="aspect-video w-full">
+                  <ClubMap lat={Number(loc.lat)} lng={Number(loc.lng)} label={loc.name} />
+                </div>
+                <div className="p-5 flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h3 className="font-semibold">{loc.name}</h3>
+                    {loc.address && <p className="text-xs text-tuna-mist">{loc.address}</p>}
+                  </div>
+                  <a
+                    href={directionsUrl(loc.address || `${loc.lat},${loc.lng}`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-sm border border-tuna-gold/40 text-tuna-gold px-4 py-2 rounded-full hover:bg-tuna-gold/10 hover:border-tuna-gold transition-colors"
+                  >
+                    🧭 Yol Tarifi Al
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        </ScrollReveal>
+      )}
+
       {/* İLETİŞİM CTA */}
       <ScrollReveal variant="fadeUp">
       <section className="max-w-4xl mx-auto px-4 py-20 text-center">
         <h2 className="font-display text-3xl mb-4">Bize Ulaşın</h2>
-        <p className="text-tuna-mist mb-8">
+        <p className="text-tuna-mist mb-2">
           Sorularınız, kayıt talepleriniz veya iş birliği önerileriniz için
           bizimle iletişime geçin.
         </p>
+        {(contactInfo?.contact_person || contactInfo?.phone) && (
+          <p className="text-tuna-gold font-medium mb-8">
+            {contactInfo?.contact_person}
+            {contactInfo?.contact_person && contactInfo?.phone && " — "}
+            {contactInfo?.phone}
+          </p>
+        )}
         <Link
           href="/iletisim"
-          className="inline-block border border-tuna-gold text-tuna-gold px-6 py-3 rounded-full hover:bg-tuna-gold hover:text-tuna-black transition"
+          className="inline-block border border-tuna-gold text-tuna-gold px-6 py-3 rounded-full hover:bg-tuna-gold hover:text-tuna-black transition mt-2"
         >
           İletişim Sayfası
         </Link>

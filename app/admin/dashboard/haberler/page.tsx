@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ImageUpload } from "@/components/admin/ImageUpload";
+import { VideoUpload } from "@/components/admin/VideoUpload";
+import { DocumentUpload } from "@/components/admin/DocumentUpload";
 
 interface NewsItem {
   id: string;
@@ -9,12 +12,13 @@ interface NewsItem {
   excerpt: string | null;
   content: string;
   cover_image_url: string | null;
+  video_url: string | null;
   is_published: boolean;
   published_at: string | null;
 }
 
 const emptyForm = {
-  slug: "", title: "", excerpt: "", content: "", cover_image_url: "", is_published: false,
+  slug: "", title: "", excerpt: "", content: "", cover_image_url: "", video_url: "", is_published: false,
 };
 
 export default function AdminHaberlerPage() {
@@ -72,6 +76,7 @@ export default function AdminHaberlerPage() {
       excerpt: item.excerpt ?? "",
       content: item.content,
       cover_image_url: item.cover_image_url ?? "",
+      video_url: item.video_url ?? "",
       is_published: item.is_published,
     });
   }
@@ -95,11 +100,22 @@ export default function AdminHaberlerPage() {
             className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
           />
         </div>
-        <input
-          placeholder="Kapak görseli URL" value={form.cover_image_url}
-          onChange={(e) => setForm({ ...form, cover_image_url: e.target.value })}
-          className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
-        />
+        <div>
+          <label className="mb-1 block text-xs text-tuna-mist">Kapak Görseli</label>
+          <ImageUpload
+            folder="news"
+            value={form.cover_image_url || null}
+            onChange={(url) => setForm({ ...form, cover_image_url: url ?? "" })}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-tuna-mist">Video (opsiyonel)</label>
+          <VideoUpload
+            folder="news-video"
+            value={form.video_url || null}
+            onChange={(url) => setForm({ ...form, video_url: url ?? "" })}
+          />
+        </div>
         <textarea
           placeholder="Özet" value={form.excerpt} rows={2}
           onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
@@ -117,6 +133,13 @@ export default function AdminHaberlerPage() {
           />
           Yayınla
         </label>
+        {form.id ? (
+          <DocumentUpload newsId={form.id} />
+        ) : (
+          <p className="text-xs text-tuna-mist">
+            Belge (PDF/Word) eklemek için önce haberi bir kez kaydedin, ardından "Düzenle"ye basıp bu bölümden ekleyin.
+          </p>
+        )}
         <div className="flex gap-3">
           <button disabled={saving} className="bg-tuna-yellow text-tuna-black font-semibold px-6 py-2 rounded-lg disabled:opacity-50">
             {saving ? "Kaydediliyor..." : form.id ? "Güncelle" : "Oluştur"}
