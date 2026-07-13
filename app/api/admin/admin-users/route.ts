@@ -42,3 +42,27 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ data });
 }
+
+export async function DELETE(req: NextRequest) {
+  const access = await requireModuleAccess(req, "admin_users_create");
+  if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+  if (access.session.role !== "super_admin") {
+    return NextResponse.json({ error: "Yetkiniz yok." }, { status: 403 });
+  }
+
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id gerekli." }, { status: 400 });
+  if (id === access.session.sub) {
+    return NextResponse.json({ error: "Kendi hesabınızı silemezsiniz." }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("admin_users").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await supabase.from("admin_audit_log").insert({
+    admin_id: access.session.sub, action: "delete", entity: "admin_users", entity_id: id,
+  });
+
+  return NextResponse.json({ ok: true });
+}

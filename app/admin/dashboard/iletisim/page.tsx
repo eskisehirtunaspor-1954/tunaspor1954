@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { GenericCrudManager } from "@/components/admin/GenericCrudManager";
 
 interface ContactInfo {
-  address?: string; phone?: string; whatsapp_number?: string; whatsapp_channel_url?: string; email?: string;
+  address?: string; contact_person?: string; phone?: string; whatsapp_number?: string; whatsapp_channel_url?: string; email?: string;
   instagram_url?: string; facebook_url?: string; youtube_url?: string;
   map_lat?: number; map_lng?: number;
 }
@@ -33,7 +33,7 @@ export default function Page() {
       <h1 className="font-display text-3xl text-tuna-yellow mb-8">İletişim Bilgileri</h1>
 
       <form onSubmit={save} className="glass-panel p-6 grid md:grid-cols-2 gap-3 mb-10">
-        {(["address","phone","whatsapp_number","whatsapp_channel_url","email","instagram_url","facebook_url","youtube_url"] as const).map((key) => (
+        {(["address","contact_person","phone","whatsapp_number","whatsapp_channel_url","email","instagram_url","facebook_url","youtube_url"] as const).map((key) => (
           <input
             key={key}
             placeholder={key}

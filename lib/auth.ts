@@ -33,13 +33,18 @@ export function verifyTotpToken(token: string, secret: string): boolean {
 }
 
 // Rol bazlı yetki kontrolü — modül erişim matrisi.
-// Spesifikasyon: "Yönetici" rolü (editor/content_manager) haberler, duyurular, maçlar,
-// takımlar, oyuncular, akademi, galeri, sponsorlar, ana sayfa/hero (çeviriler üzerinden),
+// Spesifikasyon: "Yönetici" rolü (editor) haberler, duyurular, maçlar, takımlar,
+// oyuncular, akademi, galeri, sponsorlar, ana sayfa/hero (çeviriler üzerinden),
 // iletişim ve sosyal medyayı yönetebilir; ancak sistem ayarlarına (site_settings) ve
 // yönetici hesaplarına dokunamaz — bunlar yalnızca super_admin'e özeldir.
+// "coach" (antrenör) artık burada YOK — kendi izole /antrenor panelinde,
+// coach_accounts tabanlı ayrı bir yetki sistemiyle çalışıyor (bkz. lib/coach-guard.ts).
+// training_sessions (antrenman takvimi) Yönetici'de kalır (maç/antrenman planlaması
+// ortak bir içerik yönetimi işi); training_attendance ve player_development_reports
+// ise yalnızca antrenöre özel — Süper Admin dahil admin tarafından erişilemez.
 const YONETICI_PERMISSIONS = [
   "news", "teams", "players", "staff", "fixtures", "standings", "league_table_rows",
-  "gallery_albums", "gallery_photos", "videos", "sponsors",
+  "gallery_albums", "gallery_photos", "videos", "sponsors", "training_sessions",
   "events", "event_registrations", "calendar_items", "supporter_wall",
   "contact_messages", "contact_info", "social_links", "social_posts",
   "translations", "languages", "seo_settings", "performance", "ai_knowledge_base",
@@ -50,9 +55,6 @@ const YONETICI_PERMISSIONS = [
 const ROLE_PERMISSIONS: Record<AdminSessionPayload["role"], string[]> = {
   super_admin: ["*"],
   editor: YONETICI_PERMISSIONS,
-  content_manager: YONETICI_PERMISSIONS,
-  coach: ["training_sessions", "players", "calendar_items", "staff", "fixtures", "standings",
-    "training_attendance", "player_development_reports"],
 };
 
 export function canAccess(role: AdminSessionPayload["role"], module: string): boolean {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
 import { useAtmosphere } from "@/components/layout/AtmosphereProvider";
 
 // Kuş cıvıltısı: kısa, rastgele aralıklarla tekrar eden yüksek frekanslı "cıvıltı" sesleri.
@@ -67,9 +66,45 @@ function createCrowdAmbience(ctx: AudioContext): { gain: GainNode; stop: () => v
   };
 }
 
+// Hafif rüzgar: düşük geçiren filtreli beyaz gürültü + çok yavaş bir LFO ile
+// esinti şiddetinin dalgalanması. Gündüz ve gece atmosferinde sabit, çok kısık
+// bir katman olarak diğer seslerin (kuş/kalabalık) altına karışır.
+function createWindLayer(ctx: AudioContext): { gain: GainNode; stop: () => void } {
+  const bufferSize = 4 * ctx.sampleRate;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+
+  const lowpass = ctx.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.frequency.value = 500;
+  lowpass.Q.value = 0.4;
+
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.08; // çok yavaş "esinti geliyor gidiyor" hissi
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.012;
+
+  const gain = ctx.createGain();
+  gain.gain.value = 0.025;
+
+  lfo.connect(lfoGain).connect(gain.gain);
+  src.connect(lowpass).connect(gain);
+  lfo.start();
+  src.start();
+
+  return {
+    gain,
+    stop: () => { src.stop(); lfo.stop(); },
+  };
+}
+
 export function AmbientSoundscape() {
-  const { atmosphere } = useAtmosphere();
-  const [enabled, setEnabled] = useState(false);
+  const { atmosphere, soundEnabled } = useAtmosphere();
   const [isClearWeather, setIsClearWeather] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -87,7 +122,7 @@ export function AmbientSoundscape() {
   const birdsShouldChirp = atmosphere === "sabah" || (isClearWeather && atmosphere !== "gece");
 
   useEffect(() => {
-    if (!enabled) {
+    if (!soundEnabled) {
       cleanupRef.current?.();
       cleanupRef.current = null;
       return;
@@ -101,35 +136,23 @@ export function AmbientSoundscape() {
     master.gain.value = 1;
     master.connect(ctx.destination);
 
+    // Rüzgar her zaman (gündüz + gece) çok kısık bir taban katman olarak çalar.
+    const wind = createWindLayer(ctx);
+    wind.gain.connect(master);
+    const stopFns: Array<() => void> = [wind.stop];
+
     if (birdsShouldChirp) {
       scheduleBirdChirps(ctx, master, chirpTimeoutRef);
-      cleanupRef.current = () => {
-        if (chirpTimeoutRef.current) clearTimeout(chirpTimeoutRef.current);
-        ctx.close();
-      };
+      stopFns.push(() => { if (chirpTimeoutRef.current) clearTimeout(chirpTimeoutRef.current); });
     } else if (atmosphere === "gece") {
       const crowd = createCrowdAmbience(ctx);
       crowd.gain.connect(master);
-      cleanupRef.current = () => { crowd.stop(); ctx.close(); };
-    } else {
-      // Öğle/akşam (kapalı hava) için şimdilik sessiz — ileride stadyum anonsu/rüzgar eklenebilir
-      cleanupRef.current = () => ctx.close();
+      stopFns.push(crowd.stop);
     }
 
+    cleanupRef.current = () => { stopFns.forEach((fn) => fn()); ctx.close(); };
     return () => { cleanupRef.current?.(); cleanupRef.current = null; };
-  }, [enabled, atmosphere, birdsShouldChirp]);
+  }, [soundEnabled, atmosphere, birdsShouldChirp]);
 
-  const hasAmbience = birdsShouldChirp || atmosphere === "gece";
-  if (!hasAmbience) return null;
-
-  return (
-    <button
-      onClick={() => setEnabled((v) => !v)}
-      aria-label={enabled ? "Ortam sesini kapat" : "Ortam sesini aç"}
-      title={birdsShouldChirp ? "Kuş cıvıltısı" : "Gece ortam sesi (taraftar uğultusu)"}
-      className="fixed bottom-24 left-5 z-40 glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
-    >
-      {enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-    </button>
-  );
+  return null;
 }

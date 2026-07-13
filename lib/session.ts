@@ -23,12 +23,15 @@ const encodedSecret = () => {
   return new TextEncoder().encode(secret);
 };
 
-// ---- Admin (super_admin / editor / content_manager / coach) ----
+// ---- Admin (super_admin / editor="Yönetici") ----
+// NOT: "coach" (antrenör) artık burada değil — kendi izole oturum sistemine
+// taşındı (kind:"coach", bkz. aşağıdaki Antrenör bölümü). Süper Admin dahil hiçbir
+// admin-session token'ı antrenör paneline erişemez; izolasyon buradan gelir.
 
 export interface AdminSessionPayload extends JWTPayload {
   sub: string;
   email: string;
-  role: "super_admin" | "editor" | "content_manager" | "coach";
+  role: "super_admin" | "editor";
   totpVerified: boolean;
 }
 
@@ -103,6 +106,37 @@ export async function verifyScoutSessionToken(token: string): Promise<ScoutSessi
     const { payload } = await jwtVerify(token, encodedSecret());
     const decoded = payload as ScoutSessionPayload;
     if (decoded.kind !== "scout") return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+// ---- Antrenör (coach) ----
+// Veli paneliyle birebir aynı izolasyon deseni: ayrı "kind" ayracı sayesinde
+// admin/veli/scout token'ları bu panele asla kabul edilmez.
+
+export interface CoachSessionPayload extends JWTPayload {
+  coachId: string;
+  email: string;
+  kind: "coach";
+}
+
+const COACH_SESSION_TTL = "14d";
+
+export async function signCoachSessionToken(payload: CoachSessionPayload): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(COACH_SESSION_TTL)
+    .sign(encodedSecret());
+}
+
+export async function verifyCoachSessionToken(token: string): Promise<CoachSessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, encodedSecret());
+    const decoded = payload as CoachSessionPayload;
+    if (decoded.kind !== "coach") return null;
     return decoded;
   } catch {
     return null;

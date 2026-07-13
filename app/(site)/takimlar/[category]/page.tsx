@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { T } from "@/components/layout/T";
+import { PlayerCard } from "@/components/site/PlayerCard";
 
 interface Props { params: { category: string } }
 
@@ -10,13 +11,18 @@ export const dynamic = "force-dynamic";
 
 export default async function TeamDetailPage({ params }: Props) {
   const supabase = createClient();
-  // Küçük yazım farklarına (boşluk, büyük/küçük harf) karşı toleranslı eşleşme
+  // Küçük yazım farklarına (boşluk, büyük/küçük harf) karşı toleranslı eşleşme.
+  // NOT: "category" kolonu bir Postgres enum'u (team_category) — ilike/~~* operatörü
+  // enum tiplerinde tanımlı değildir ve "operator does not exist" hatasıyla sorgunun
+  // tamamen başarısız olmasına (dolayısıyla her kategori sayfasının 404 görünmesine)
+  // yol açıyordu. Normalize işlemi zaten JS tarafında yapıldığı (trim+lowercase) ve
+  // enum değerleri zaten hep küçük harf olduğu için exact match (eq) yeterli ve doğru.
   const normalizedCategory = params.category.trim().toLowerCase();
 
   const { data: team } = await supabase
     .from("teams")
     .select("*")
-    .ilike("category", normalizedCategory)
+    .eq("category", normalizedCategory)
     .eq("is_published", true)
     .single();
 
@@ -106,13 +112,9 @@ export default async function TeamDetailPage({ params }: Props) {
 
       <section id="kadro" className="mb-16 scroll-mt-28">
         <T k="team_section_roster" as="h2" className="font-display text-2xl mb-6" />
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {(players ?? []).map((p) => (
-            <div key={p.id} className="glass-panel p-4 text-center">
-              <div className="text-2xl font-display text-tuna-gold">{p.jersey_number ?? "-"}</div>
-              <div className="text-sm font-medium mt-1">{p.full_name}</div>
-              <div className="text-xs text-tuna-mist">{p.position}</div>
-            </div>
+            <PlayerCard key={p.id} player={p} />
           ))}
           {!players?.length && <T k="empty_roster" as="p" className="text-tuna-mist col-span-full" />}
         </div>

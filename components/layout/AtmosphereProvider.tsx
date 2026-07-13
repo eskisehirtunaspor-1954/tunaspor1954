@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 export type Atmosphere = "sabah" | "ogle" | "aksam" | "gece";
 export type WeatherMode = "acik" | "parcali_bulutlu" | "bulutlu" | "yagmurlu" | "karli" | "sisli" | "firtinali";
@@ -9,12 +10,16 @@ interface AtmosphereContextValue {
   atmosphere: Atmosphere;
   weatherMode: WeatherMode;
   specialMoment: boolean; // saat tam 19:54 olduğunda ~5 saniye true
+  soundEnabled: boolean;
+  toggleSound: () => void;
 }
 
 const AtmosphereContext = createContext<AtmosphereContextValue>({
   atmosphere: "gece",
   weatherMode: "acik",
   specialMoment: false,
+  soundEnabled: false,
+  toggleSound: () => {},
 });
 
 export const useAtmosphere = () => useContext(AtmosphereContext);
@@ -57,6 +62,22 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   const [weatherOverride, setWeatherOverride] = useState<WeatherMode | "otomatik">("otomatik");
   const [autoWeather, setAutoWeather] = useState<WeatherMode>("acik");
   const [specialMoment, setSpecialMoment] = useState(false);
+  // Site genelinde TEK bir atmosfer sesi kontrolü (kuş/rüzgar/kalabalık/yağmur hepsi
+  // bu tek anahtara bağlı) — kullanıcının tercihi sayfalar arası gezinirken korunsun
+  // diye localStorage'a yazılır.
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  useEffect(() => {
+    setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") === "on");
+  }, []);
+
+  function toggleSound() {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem("tuna_atmosphere_sound", next ? "on" : "off");
+      return next;
+    });
+  }
 
   useEffect(() => {
     fetch("/api/site-settings-public")
@@ -98,8 +119,8 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   // bu context'i dinleyen TÜM bileşenler (StadiumBackground, WeatherEffects,
   // Hero, LightningSystem, AmbientSoundscape...) gereksiz yere yeniden render olur.
   const value = useMemo(
-    () => ({ atmosphere, weatherMode, specialMoment }),
-    [atmosphere, weatherMode, specialMoment]
+    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled, toggleSound }),
+    [atmosphere, weatherMode, specialMoment, soundEnabled]
   );
 
   return (
@@ -107,6 +128,14 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
       <div data-atmosphere={atmosphere} className="transition-colors duration-[2500ms]">
         {children}
       </div>
+      <button
+        onClick={toggleSound}
+        aria-label={soundEnabled ? "Atmosfer sesini kapat" : "Atmosfer sesini aç"}
+        title="Atmosfer Sesi"
+        className="fixed bottom-24 left-5 z-40 glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
+      >
+        {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+      </button>
     </AtmosphereContext.Provider>
   );
 }

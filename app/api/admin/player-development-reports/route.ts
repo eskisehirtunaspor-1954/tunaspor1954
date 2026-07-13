@@ -1,7 +1,14 @@
-import { createCrudHandlers } from "@/lib/crud-factory";
+import { NextResponse } from "next/server";
 
-export const { GET, POST, PATCH, DELETE } = createCrudHandlers({
-  table: "player_development_reports",
-  moduleName: "player_development_reports",
-  defaultOrder: { column: "created_at", ascending: false },
-});
+// Bu modül izolasyon gereği kaldırıldı: gelişim raporları artık yalnızca /api/coach/*
+// üzerinden, antrenörün kendi oturumuyla ve yalnızca kendi atandığı takımlardaki
+// oyuncular için yönetiliyor. Süper Admin dahil hiçbir admin-session bu veriye
+// buradan erişemez.
+function gone() {
+  return NextResponse.json({ error: "Bu modül Antrenör Paneli'ne taşındı." }, { status: 410 });
+}
+
+export const GET = gone;
+export const POST = gone;
+export const PATCH = gone;
+export const DELETE = gone;

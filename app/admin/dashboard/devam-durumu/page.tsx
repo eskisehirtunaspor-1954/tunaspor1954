@@ -1,24 +1,19 @@
-"use client";
-import { GenericCrudManager } from "@/components/admin/GenericCrudManager";
-
+// Bu modül, izolasyon gereği Antrenör Paneli'ne taşındı: yoklama artık yalnızca
+// /antrenor/panel üzerinden, antrenörün kendi atandığı takım(lar) için girilebilir
+// (Süper Admin dahil hiçbir admin hesabı buradan erişemez — bkz. plan Faz 6b).
 export default function Page() {
   return (
-    <GenericCrudManager
-      apiPath="/api/admin/training-attendance"
-      title="Antrenman Devam Durumu"
-      titleField="status"
-      subtitleField="note"
-      fields={[
-        { name: "session_id", label: "Antrenman Oturumu ID (uuid)", required: true },
-        { name: "player_id", label: "Oyuncu ID (uuid)", required: true },
-        { name: "status", label: "Durum", type: "select", required: true,
-          options: [
-            { value: "katildi", label: "Katıldı" },
-            { value: "katilmadi", label: "Katılmadı" },
-            { value: "izinli", label: "İzinli" },
-          ] },
-        { name: "note", label: "Not (opsiyonel)" },
-      ]}
-    />
+    <div className="min-h-screen px-4 py-10 max-w-3xl mx-auto">
+      <h1 className="font-display text-3xl text-tuna-yellow mb-4">Antrenman Devam Durumu</h1>
+      <p className="text-tuna-mist">
+        Bu modül, izolasyon gereği artık yalnızca antrenörlerin kendi giriş yaptığı{" "}
+        <span className="text-tuna-gold">Antrenör Paneli</span>'nden yönetiliyor.
+        Antrenör hesabı oluşturmak/atamak için{" "}
+        <a href="/admin/dashboard/antrenorler" className="text-tuna-gold underline">
+          Antrenör Hesapları
+        </a>{" "}
+        sayfasını kullanın.
+      </p>
+    </div>
   );
 }

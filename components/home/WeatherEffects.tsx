@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
 import { useAtmosphere } from "@/components/layout/AtmosphereProvider";
 
 // Mobil / düşük güçlü cihazlarda parçacık sayısını otomatik azaltır (performans).
@@ -65,13 +64,10 @@ function useSynthRainSound(enabled: boolean) {
 }
 
 export function WeatherEffects() {
-  const { weatherMode } = useAtmosphere();
+  const { weatherMode, soundEnabled } = useAtmosphere();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const budget = useParticleBudget();
-  const [soundOn, setSoundOn] = useState(false);
-  useSynthRainSound(soundOn && weatherMode === "yagmurlu");
-
-  useEffect(() => { if (weatherMode !== "yagmurlu") setSoundOn(false); }, [weatherMode]);
+  useSynthRainSound(soundEnabled && weatherMode === "yagmurlu");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -212,20 +208,16 @@ export function WeatherEffects() {
         </div>
       )}
 
+      {/* Yağmurlu modda istenen "hafif sis efekti" — sisli moddakinin çok hafifletilmiş hali */}
+      {weatherMode === "yagmurlu" && (
+        <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
+          <div className="absolute -inset-x-1/4 bottom-0 h-1/3 bg-white/[0.05] blur-3xl animate-[shimmer_22s_linear_infinite]" />
+        </div>
+      )}
+
       {/* Fırtınalı mod: koyu bulut örtüsü */}
       {weatherMode === "firtinali" && (
         <div className="pointer-events-none fixed inset-0 z-10 bg-black/25" />
-      )}
-
-      {/* Yağmur sesi aç/kapa — yalnızca yağmurlu modda görünür */}
-      {weatherMode === "yagmurlu" && (
-        <button
-          onClick={() => setSoundOn((v) => !v)}
-          aria-label={soundOn ? "Yağmur sesini kapat" : "Yağmur sesini aç"}
-          className="fixed bottom-24 right-5 z-40 glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
-        >
-          {soundOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
-        </button>
       )}
     </>
   );

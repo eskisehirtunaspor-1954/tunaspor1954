@@ -15,7 +15,7 @@ const bodySchema = z.object({
     .regex(/[a-z]/, "Şifre en az bir küçük harf içermeli.")
     .regex(/[0-9]/, "Şifre en az bir rakam içermeli."),
   full_name: z.string().min(2).max(160),
-  role: z.enum(["super_admin", "editor", "content_manager", "coach"]),
+  role: z.enum(["super_admin", "editor"]),
 });
 
 // Yalnızca super_admin yeni yönetici hesabı oluşturabilir.

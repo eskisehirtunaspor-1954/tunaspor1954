@@ -12,9 +12,11 @@ describe("canAccess (rol bazlı yetkilendirme)", () => {
     expect(canAccess("editor", "admin_users_create")).toBe(false);
   });
 
-  it("coach yalnızca antrenman ile ilgili modüllere erişebilir", () => {
-    expect(canAccess("coach", "training_sessions")).toBe(true);
-    expect(canAccess("coach", "sponsors")).toBe(false);
+  it("editor training_sessions modülüne erişebilir ama antrenöre özel modüllere erişemez", () => {
+    // training_attendance / player_development_reports artık admin panelinde hiç
+    // yok (izole /antrenor paneline taşındı) — bu yüzden editor (ve super_admin
+    // dahil hiç kimse) admin API'lerinden bu verilere erişemez.
+    expect(canAccess("editor", "training_sessions")).toBe(true);
   });
 });
 

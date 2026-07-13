@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken, verifyParentSessionToken, verifyScoutSessionToken } from "@/lib/session";
+import { verifySessionToken, verifyParentSessionToken, verifyScoutSessionToken, verifyCoachSessionToken } from "@/lib/session";
 
 const COOKIE_NAME = process.env.ADMIN_SESSION_COOKIE_NAME || "tunaspor_admin_session";
 const PARENT_COOKIE_NAME = "tunaspor_parent_session";
 const SCOUT_COOKIE_NAME = "tunaspor_scout_session";
+const COACH_COOKIE_NAME = "tunaspor_coach_session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -54,9 +55,27 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/antrenor/giris")) {
+    return NextResponse.next();
+  }
+
+  // İZOLASYON: Bu blok yalnızca tunaspor_coach_session cookie'sini kabul eder.
+  // Admin (super_admin dahil), veli veya scout oturumu burada geçersizdir —
+  // Antrenör Paneli'ne yalnızca kendi hesabıyla giriş yapan antrenörler erişebilir.
+  if (pathname.startsWith("/antrenor")) {
+    const token = request.cookies.get(COACH_COOKIE_NAME)?.value;
+    const session = token ? await verifyCoachSessionToken(token) : null;
+
+    if (!session) {
+      const loginUrl = new URL("/antrenor/giris", request.url);
+      loginUrl.searchParams.set("redirectedFrom", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/veli/:path*", "/scout/:path*"],
+  matcher: ["/admin/:path*", "/veli/:path*", "/scout/:path*", "/antrenor/:path*"],
 };

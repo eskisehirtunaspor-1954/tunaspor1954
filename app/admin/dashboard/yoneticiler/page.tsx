@@ -82,6 +82,23 @@ export default function Page() {
     load();
   }
 
+  async function changeRole(u: AdminUser) {
+    const nextRole = u.role === "super_admin" ? "editor" : "super_admin";
+    if (!confirm(`${u.full_name} artık "${nextRole === "super_admin" ? "Süper Admin" : "Yönetici"}" olsun mu?`)) return;
+    await fetch("/api/admin/admin-users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: u.id, role: nextRole }),
+    });
+    load();
+  }
+
+  async function handleDelete(u: AdminUser) {
+    if (!confirm(`${u.full_name} hesabını kalıcı olarak silmek istediğinize emin misiniz?`)) return;
+    await fetch(`/api/admin/admin-users?id=${u.id}`, { method: "DELETE" });
+    load();
+  }
+
   return (
     <div className="min-h-screen px-4 py-10 max-w-3xl mx-auto">
       <h1 className="font-display text-3xl text-tuna-yellow mb-8">Yönetici Hesapları</h1>
@@ -148,10 +165,8 @@ export default function Page() {
           className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow" />
         <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
           className="w-full bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow">
-          <option value="super_admin">Süper Yönetici</option>
-          <option value="editor">Editör</option>
-          <option value="content_manager">İçerik Yöneticisi</option>
-          <option value="coach">Antrenör</option>
+          <option value="super_admin">Süper Admin</option>
+          <option value="editor">Yönetici</option>
         </select>
         <button disabled={saving} className="bg-tuna-yellow text-tuna-black font-semibold px-6 py-2 rounded-lg disabled:opacity-50">
           {saving ? "Oluşturuluyor..." : "Hesap Oluştur"}
@@ -161,14 +176,24 @@ export default function Page() {
       <h2 className="font-semibold mb-4">Mevcut Yöneticiler</h2>
       <div className="space-y-2">
         {users.map((u) => (
-          <div key={u.id} className="glass-panel p-4 flex items-center justify-between">
+          <div key={u.id} className="glass-panel p-4 flex items-center justify-between flex-wrap gap-2">
             <div>
               <p className="font-medium">{u.full_name}</p>
-              <p className="text-xs text-tuna-mist">{u.email} — {u.role}</p>
+              <p className="text-xs text-tuna-mist">
+                {u.email} — {u.role === "super_admin" ? "Süper Admin" : "Yönetici"}
+              </p>
             </div>
-            <button onClick={() => toggleActive(u)} className={`text-sm ${u.is_active ? "text-red-400" : "text-tuna-yellow"}`}>
-              {u.is_active ? "Pasifleştir" : "Aktifleştir"}
-            </button>
+            <div className="flex gap-3 shrink-0">
+              <button onClick={() => changeRole(u)} className="text-sm text-tuna-gold">
+                Rolü Değiştir
+              </button>
+              <button onClick={() => toggleActive(u)} className={`text-sm ${u.is_active ? "text-red-400" : "text-tuna-yellow"}`}>
+                {u.is_active ? "Pasifleştir" : "Aktifleştir"}
+              </button>
+              <button onClick={() => handleDelete(u)} className="text-sm text-red-400">
+                Sil
+              </button>
+            </div>
           </div>
         ))}
       </div>
