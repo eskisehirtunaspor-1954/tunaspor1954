@@ -10,10 +10,10 @@ import { BirdsEffect } from "./BirdsEffect";
 import { SpecialMoment } from "./SpecialMoment";
 import type { LightningIntensity } from "./LightningSystem";
 
-// Bu iki katman Hero'nun görsel olarak hemen görünmesi için gerekli değil
-// (ambiyans sesi kapalı başlar, şimşek yalnızca fırtınalı modda görünür) —
-// bu yüzden ayrı chunk'a bölünüp ilk boyamadan sonra yükleniyor.
-const AmbientSoundscape = dynamic(() => import("./AmbientSoundscape").then((m) => m.AmbientSoundscape), { ssr: false });
+// Bu katman Hero'nun görsel olarak hemen görünmesi için gerekli değil (şimşek
+// yalnızca fırtınalı modda görünür) — bu yüzden ayrı chunk'a bölünüp ilk
+// boyamadan sonra yükleniyor. Atmosfer sesi (AmbientSoundscape) artık site
+// genelinde DeferredEffects üzerinden tek bir yerden mount ediliyor.
 const LightningSystem = dynamic(() => import("./LightningSystem").then((m) => m.LightningSystem), { ssr: false });
 
 const ATMOSPHERE_BADGE: Record<string, string> = {
@@ -58,7 +58,6 @@ export function Hero({
       <StadiumBackground />
       <BirdsEffect />
       <SpecialMoment />
-      <AmbientSoundscape />
       <LightningSystem intensity={lightningIntensity} />
 
       <div className="relative z-10 w-full max-w-7xl mx-auto grid lg:grid-cols-[1.3fr_0.9fr] gap-10 items-center py-24">

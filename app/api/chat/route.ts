@@ -5,13 +5,13 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // Asistan emin olmadığında TAM OLARAK bu metni döndürmesi için talimatlandırılır
-// (bkz. systemPrompt madde 9) — client bu metni değil, response'taki needsHuman
-// bayrağını kullanarak "WhatsApp ile İletişime Geç" butonunu gösterir.
+// (bkz. systemPrompt madde 13) — client bu metni değil, response'taki needsHuman
+// bayrağını kullanarak WhatsApp/İletişim Formu butonlarını gösterir.
 // NOT: Next.js route dosyaları yalnızca izin verilen adları (GET/POST/config vb.)
 // export edebilir, bu yüzden bu sabit dışa aktarılmıyor (route dışı bir yerden
 // gerekirse lib/notifications.ts'e taşınabilir).
 const UNSURE_FALLBACK_MESSAGE =
-  "Bu konuda size kesin bilgi veremiyorum. Dilerseniz kulüp yetkilimizle WhatsApp üzerinden iletişime geçebilirsiniz.";
+  "Bu konuda doğrulanmış bilgim yok. İsterseniz kulüp yönetimine iletebilirim.";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 15;
@@ -63,6 +63,49 @@ const TOOLS: Anthropic.Tool[] = [
      "Tunaspor 1954'ün oynadığı ligdeki güncel puan durumundaki sırasını, puanını ve maç istatistiklerini döner. Kullanıcı 'ligde kaçıncısınız', 'puan durumu nedir' gibi bir şey sorduğunda bu aracı kullan.",
     input_schema: { type: "object", properties: {} },
   },
+  {
+    name: "get_team_roster",
+    description:
+      "Belirli bir takım/yaş kategorisinin antrenörünü, açıklamasını ve oyuncu kadrosunu (isim, mevki, forma numarası) döner. Kullanıcı 'A takımda kimler var', 'kadın takımının antrenörü kim', 'U14 kadrosu' gibi bir şey sorduğunda bu aracı kullan.",
+    input_schema: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: ["a_takim", "kadin_takimi", "u18", "u17", "u16", "u15", "u14", "u13", "u12", "u11", "u10", "u9"],
+          description: "Sorulan takım/yaş kategorisi.",
+        },
+      },
+      required: ["category"],
+    },
+  },
+  {
+    name: "get_staff_list",
+    description:
+      "Kulübün yönetim ve teknik ekibindeki kişileri (başkan, teknik direktör, antrenörler, kondisyoner vb.) ve görevlerini döner. Kullanıcı 'yönetim kurulu kim', 'teknik ekipte kimler var', 'başkan kim' gibi bir şey sorduğunda bu aracı kullan.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_latest_news",
+    description:
+      "Kulüple ilgili en güncel yayınlanmış haberleri (başlık, özet, tarih) döner. Kullanıcı 'son haberler neler', 'yeni bir haber var mı' gibi bir şey sorduğunda bu aracı kullan.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_training_schedule",
+    description:
+      "Belirli bir takımın/kategorinin (veya tüm takımların) yaklaşan planlı antrenman gün ve saatlerini döner. Kullanıcı 'antrenmanlar ne zaman', 'U12 ne zaman antrenmana çıkıyor' gibi bir şey sorduğunda bu aracı kullan.",
+    input_schema: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          enum: ["a_takim", "kadin_takimi", "u18", "u17", "u16", "u15", "u14", "u13", "u12", "u11", "u10", "u9", "hepsi"],
+          description: "Sorulan takım/yaş kategorisi, emin değilsen 'hepsi' kullan.",
+        },
+      },
+    },
+  },
 ];
 
 async function executeTool(name: string, input: any): Promise<string> {
@@ -112,6 +155,61 @@ async function executeTool(name: string, input: any): Promise<string> {
     return `${data.league_name} (${data.season}) içinde Tunaspor 1954 şu an ${data.rank}. sırada: ${data.played} maç, ${data.won} galibiyet, ${data.drawn} beraberlik, ${data.lost} mağlubiyet, ${data.points} puan.`;
   }
 
+  if (name === "get_team_roster") {
+    const category = input?.category;
+    if (!category) return "Hangi takım/kategoriyi kastettiğinizi belirtir misiniz? (Örn: A Takım, Kadın Takımı, U14)";
+    const { data: team } = await supabase.from("teams").select("*").eq("category", category).eq("is_published", true).maybeSingle();
+    if (!team) return "Bu kategoriye ait yayınlanmış bir takım bilgisi bulunamadı.";
+    const { data: players } = await supabase
+      .from("players")
+      .select("full_name, position, jersey_number")
+      .eq("team_id", team.id)
+      .eq("is_published", true)
+      .order("jersey_number", { ascending: true })
+      .limit(30);
+    const roster = (players ?? [])
+      .map((p: any) => `#${p.jersey_number ?? "-"} ${p.full_name}${p.position ? ` (${p.position})` : ""}`)
+      .join(", ");
+    return `${team.display_name}${team.coach_name ? ` — Antrenör: ${team.coach_name}` : ""}.${team.description ? ` ${team.description}` : ""} Kadro: ${roster || "henüz oyuncu listesi girilmemiş"}.`;
+  }
+
+  if (name === "get_staff_list") {
+    const { data } = await supabase.from("staff_members").select("full_name, role").eq("is_published", true).limit(40);
+    if (!data?.length) return "Yönetim/teknik ekip bilgisi henüz girilmemiş.";
+    return data.map((s: any) => `${s.full_name} — ${s.role}`).join("\n");
+  }
+
+  if (name === "get_latest_news") {
+    const { data } = await supabase
+      .from("news")
+      .select("title, excerpt, published_at")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false })
+      .limit(5);
+    if (!data?.length) return "Henüz yayınlanmış bir haber bulunmuyor.";
+    return data
+      .map((n: any) => `${n.title}${n.published_at ? ` (${new Date(n.published_at).toLocaleDateString("tr-TR")})` : ""}${n.excerpt ? ` — ${n.excerpt}` : ""}`)
+      .join("\n");
+  }
+
+  if (name === "get_training_schedule") {
+    let query = supabase
+      .from("training_sessions")
+      .select("*, teams(display_name)")
+      .gte("session_date", new Date().toISOString().slice(0, 10))
+      .eq("status", "scheduled")
+      .order("session_date", { ascending: true });
+    if (input?.category && input.category !== "hepsi") {
+      const { data: team } = await supabase.from("teams").select("id").eq("category", input.category).maybeSingle();
+      if (team) query = query.eq("team_id", team.id);
+    }
+    const { data } = await query.limit(8);
+    if (!data?.length) return "Yaklaşan planlı bir antrenman bulunmuyor.";
+    return data
+      .map((s: any) => `${s.teams?.display_name ?? "Takım"} — ${new Date(s.session_date).toLocaleDateString("tr-TR")} ${s.start_time}${s.end_time ? `-${s.end_time}` : ""}${s.venue ? `, ${s.venue}` : ""}`)
+      .join("\n");
+  }
+
   return "Bilinmeyen araç.";
 }
 
@@ -150,20 +248,31 @@ export async function POST(req: NextRequest) {
   const staticFactsText = `## Akademi Yaş Kategorileri (sabit bilgi)
 Tunaspor 1954 Akademi, U9'dan U18'e kadar 10 yaş kategorisinde faaliyet gösterir: U9, U10, U11, U12, U13, U14, U15, U16, U17, U18. Ayrıca A Takım (yetişkin) ve Kadın Takımı bulunur. Akademiye kayıt için doğum yılına göre uygun kategoriye yönlendir; kesin kayıt/seçme tarihleri için get_camp_or_event_schedule aracını kullan.`;
 
-  const systemPrompt = `Sen "TUNA AI" — Tunaspor 1954 futbol kulübünün kendi yapay zeka asistanısın. Sadece önceden yazılmış cevapları tekrarlayan basit bir chatbot değilsin; gerektiğinde elindeki araçları kullanarak gerçek zamanlı, güncel ve doğru yanıtlar üretirsin. Varsayılan olarak Türkçe yanıt ver; kullanıcı başka bir dilde yazarsa o dilde devam et. Kısa, samimi ve doğru ol.
+  const sitePagesText = `## Site Sayfaları (kullanıcıyı yönlendirmek için)
+Forma tasarım stüdyosu: /forma-tasarim · İletişim: /iletisim · Etkinlikler: /etkinlikler · Haberler: /haberler · Takımlar: /takimlar · Galeri: /galeri · Lig durumu: /lig-durumu · Takvim: /takvim · Sponsorlar: /sponsorlar · Mini oyunlar: /mini-oyun · Destekçi Duvarı: /destekci-duvari`;
+
+  const systemPrompt = `Sen "TUNA AI" — Tunaspor 1954 futbol kulübünün kendi yapay zeka asistanısın. Sadece önceden yazılmış cevapları tekrarlayan basit bir chatbot değilsin; doğal, bağlamı takip eden bir sohbet yürütürsün, önceki mesajları dikkate alır, gerektiğinde açıklama/öneri/yönlendirme yaparsın ve elindeki araçları kullanarak gerçek zamanlı, güncel ve doğru yanıtlar üretirsin. Varsayılan olarak Türkçe yanıt ver; kullanıcı başka bir dilde yazarsa o dilde devam et. Kısa, samimi ve doğru ol.
+
+Cevap verebileceğin kulüple ilgili konular: kulüp hakkında genel bilgiler, tarihçe, yönetim, teknik ekip, A Takım, Kadın Takımı, U9-U18 altyapı kategorileri, oyuncular, antrenman saatleri, maç takvimi, maç sonuçları, haberler, etkinlikler, yaz/kış futbol okulları, kayıt işlemleri, forma tasarımı, lisans işlemleri, iletişim bilgileri, sponsorlar ve site kullanımı (hangi sayfada ne var).
 
 Görevlerin ve nasıl davranman gerektiği:
 1. "Son maç kaç kaç bitti", "ligde kaçıncıyız", "sıradaki maç ne zaman" gibi CANLI/GÜNCEL veri gerektiren sorularda MUTLAKA ilgili aracı çağır, tahmin veya ezber bilgiyle cevap verme.
-2. "Yaz futbol okulu ne zaman", "seçmeler ne zaman" gibi sorularda get_camp_or_event_schedule aracını kullan.
-3. Akademi yaş kategorileri, kulüp tarihçesi gibi sabit bilgileri aşağıdaki metinlerden yanıtla.
-4. Kayıt/başvuru sürecini soranlara: ilgili etkinlik açık kayıt alıyorsa web sitesindeki "Etkinlikler" sayfasından online başvurabileceklerini söyle; değilse WhatsApp'tan iletişime geçmelerini öner.
-5. İletişim bilgisi isteyenlere güncel bilgileri doğrudan ve eksiksiz paylaş.
-6. Forma fiyatı, ürün fiyatları gibi bilgi tabanında (aşağıda) yer almayan KULÜBE ÖZEL konularda asla bilgi uydurma — kulübün WhatsApp hattına yönlendir.
-7. Kulüple ilgisi olmayan genel konularda (futbol dünyası, spor, eğitim, teknoloji, günlük hayat, tarih, bilim, genel kültür vb.) rahatça ve doğal şekilde sohbet edebilirsin — bunlar için araç kullanmana gerek yok, kendi genel bilgini kullan. Sadece kulüple ilgili GÜNCEL/canlı verilerde (madde 1) araç zorunlu.
-8. Emin olmadığın hiçbir konuda, özellikle kulübe özel konularda, bilgi uydurma.
-9. Eğer soruya kesin ve doğru bir cevap veremiyorsan (bilgi tabanında yok, araçlar yetersiz kaldı, konu belirsiz vb.), başka HİÇBİR ŞEY eklemeden, tam olarak ve yalnızca şu cümleyi yanıt olarak ver: "${UNSURE_FALLBACK_MESSAGE}"
+2. "Yaz/kış futbol okulu ne zaman", "seçmeler ne zaman" gibi sorularda get_camp_or_event_schedule aracını kullan (kış okulu ayrı bir etkinlik türü olarak girilmemiş olabilir, emin değilsen event_type "hepsi" ile ara).
+3. "A takımda/Kadın takımında/U14'te kimler var", "antrenörü kim" gibi sorularda get_team_roster aracını kullan.
+4. "Yönetim kurulu", "teknik ekip", "başkan kim" gibi sorularda get_staff_list aracını kullan.
+5. "Son haberler neler" gibi sorularda get_latest_news aracını kullan.
+6. "Antrenmanlar ne zaman" gibi sorularda get_training_schedule aracını kullan.
+7. Akademi yaş kategorileri, kulüp tarihçesi gibi sabit bilgileri ve site sayfa yönlendirmelerini aşağıdaki metinlerden yanıtla.
+8. Kayıt/başvuru sürecini soranlara: ilgili etkinlik açık kayıt alıyorsa web sitesindeki "Etkinlikler" sayfasından (/etkinlikler) online başvurabileceklerini söyle; değilse kulüp yönetimiyle iletişime geçmelerini öner.
+9. Forma tasarımı hakkında sorulara /forma-tasarim sayfasını, iletişim bilgisi isteyenlere güncel bilgileri (aşağıda) doğrudan ve eksiksiz paylaş.
+10. Lisans işlemleri, forma/ürün fiyatları gibi bilgi tabanında (aşağıda) yer almayan KULÜBE ÖZEL ve resmi süreç gerektiren konularda asla bilgi uydurma — kulüp yönetimine yönlendir.
+11. Kulüple ilgisi olmayan genel konularda (futbol dünyası, spor, eğitim, teknoloji, günlük hayat, tarih, bilim, genel kültür vb.) rahatça ve doğal şekilde, gerçek bir yapay zeka gibi sohbet edebilirsin — bunlar için araç kullanmana gerek yok, kendi genel bilgini kullan. Sadece kulüple ilgili GÜNCEL/canlı verilerde (madde 1-6) araç zorunlu.
+12. Emin olmadığın hiçbir konuda, özellikle kulübe özel ve resmi konularda, bilgi uydurma.
+13. Eğer soruya kesin ve doğru bir cevap veremiyorsan (bilgi tabanında yok, araçlar yetersiz kaldı, konu belirsiz vb.), başka HİÇBİR ŞEY eklemeden, tam olarak ve yalnızca şu cümleyi yanıt olarak ver: "${UNSURE_FALLBACK_MESSAGE}"
 
 ${staticFactsText}
+
+${sitePagesText}
 
 ${knowledgeText}
 

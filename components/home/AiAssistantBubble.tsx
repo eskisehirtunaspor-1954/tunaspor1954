@@ -100,14 +100,22 @@ export function AiAssistantBubble() {
                   {m.content}
                 </div>
                 {m.needsHuman && (
-                  <a
-                    href={whatsappHref()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1.5 inline-flex items-center gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 rounded-full px-3 py-1.5 hover:bg-emerald-500/25 transition-colors"
-                  >
-                    💬 WhatsApp ile İletişime Geç
-                  </a>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <a
+                      href={whatsappHref()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 rounded-full px-3 py-1.5 hover:bg-emerald-500/25 transition-colors"
+                    >
+                      💬 WhatsApp ile İletişime Geç
+                    </a>
+                    <a
+                      href="/iletisim"
+                      className="inline-flex items-center gap-1.5 text-xs bg-tuna-gold/10 text-tuna-gold border border-tuna-gold/30 rounded-full px-3 py-1.5 hover:bg-tuna-gold/20 transition-colors"
+                    >
+                      ✉️ İletişim Formu
+                    </a>
+                  </div>
                 )}
               </div>
             ))}

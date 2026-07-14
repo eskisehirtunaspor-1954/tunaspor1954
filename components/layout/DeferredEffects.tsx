@@ -16,11 +16,19 @@ const AiAssistantBubble = dynamic(
   () => import("@/components/home/AiAssistantBubble").then((m) => m.AiAssistantBubble),
   { ssr: false }
 );
+// Atmosfer sesi (rüzgar/kuş/kurt uluması/taraftar) site genelinde çalar — ses
+// aç/kapa düğmesi zaten her sayfada görünür olduğundan (bkz. AtmosphereProvider),
+// sesin yalnızca ana sayfada duyulması tutarsız bir deneyim olurdu.
+const AmbientSoundscape = dynamic(
+  () => import("@/components/home/AmbientSoundscape").then((m) => m.AmbientSoundscape),
+  { ssr: false }
+);
 
 export function DeferredEffects() {
   return (
     <>
       <WeatherEffects />
+      <AmbientSoundscape />
       <AiAssistantBubble />
     </>
   );
