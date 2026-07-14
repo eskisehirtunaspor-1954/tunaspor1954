@@ -4,13 +4,29 @@ import { friendlyError } from "@/lib/db-errors";
 import { z } from "zod";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
-const layoutItem = z.object({ x: z.number(), y: z.number(), scale: z.number() });
+const hexColor = /^#[0-9a-fA-F]{6}$/;
+
+const designLayer = z.object({
+  id: z.string(),
+  kind: z.enum(["logo", "sponsor", "text"]),
+  canvas: z.enum(["front", "back", "sleeve", "shorts"]),
+  x: z.number(),
+  y: z.number(),
+  scale: z.number(),
+  rotation: z.number(),
+  imageUrl: z.string().optional(),
+  text: z.string().optional(),
+  color: z.string().optional(),
+  font: z.string().optional(),
+  effect: z.enum(["yok", "kontur", "golge", "kabartma"]).optional(),
+});
 
 const schema = z.object({
   designer_name: z.string().min(2).max(60),
-  primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Geçerli bir renk kodu gerekli."),
-  secondary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Geçerli bir renk kodu gerekli."),
-  pattern: z.enum(["duz", "cizgili", "capraz"]),
+  primary_color: z.string().regex(hexColor, "Geçerli bir renk kodu gerekli."),
+  secondary_color: z.string().regex(hexColor, "Geçerli bir renk kodu gerekli."),
+  tertiary_color: z.string().regex(hexColor).optional().or(z.literal("")),
+  pattern: z.enum(["duz", "cizgili", "capraz", "parcali", "geometrik", "kamuflaj", "gradient"]),
   player_name: z.string().max(20).optional().or(z.literal("")),
   player_number: z
     .string()
@@ -21,11 +37,14 @@ const schema = z.object({
   kit_type: z.enum(["ev_sahibi", "deplasman", "kaleci", "antrenman"]).optional(),
   collar_type: z.enum(["bisiklet", "polo", "v_yaka"]).optional(),
   sleeve_type: z.enum(["kisa", "uzun"]).optional(),
-  shorts_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().or(z.literal("")),
-  socks_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().or(z.literal("")),
+  shorts_color: z.string().regex(hexColor).optional().or(z.literal("")),
+  socks_color: z.string().regex(hexColor).optional().or(z.literal("")),
   fabric: z.enum(["mat", "parlak", "klasik"]).optional(),
   sponsor_logo_url: z.string().url().optional().or(z.literal("")),
-  design_layout: z.object({ logo: layoutItem, sponsor: layoutItem, name: layoutItem, number: layoutItem }).optional(),
+  text_color: z.string().regex(hexColor).optional().or(z.literal("")),
+  text_font: z.string().max(60).optional().or(z.literal("")),
+  text_effect: z.enum(["yok", "kontur", "golge", "kabartma"]).optional(),
+  design_layout: z.array(designLayer).optional(),
 });
 
 // Herkes tasarım gönderebilir (onaydan sonra herkese görünür — supporter_wall ile aynı desen)
@@ -56,7 +75,7 @@ export async function GET() {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("jersey_designs")
-    .select("id, designer_name, primary_color, secondary_color, pattern, player_name, player_number, votes, created_at, kit_type")
+    .select("id, designer_name, primary_color, secondary_color, tertiary_color, pattern, player_name, player_number, votes, created_at, kit_type")
     .eq("is_approved", true)
     .order("votes", { ascending: false })
     .limit(60);

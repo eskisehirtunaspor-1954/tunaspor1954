@@ -3,7 +3,8 @@
 interface JerseyPreviewProps {
   primaryColor: string;
   secondaryColor: string;
-  pattern: "duz" | "cizgili" | "capraz";
+  tertiaryColor?: string;
+  pattern: "duz" | "cizgili" | "capraz" | "parcali" | "geometrik" | "kamuflaj" | "gradient";
   playerName?: string;
   playerNumber?: string;
   className?: string;
@@ -15,6 +16,7 @@ interface JerseyPreviewProps {
 export function JerseyPreview({
   primaryColor,
   secondaryColor,
+  tertiaryColor,
   pattern,
   playerName,
   playerNumber,
@@ -29,10 +31,15 @@ export function JerseyPreview({
         <clipPath id="jerseyClip">
           <path d={jerseyPath} />
         </clipPath>
+        <linearGradient id="jerseyGradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={primaryColor} />
+          <stop offset="50%" stopColor={secondaryColor} />
+          <stop offset="100%" stopColor={tertiaryColor ?? primaryColor} />
+        </linearGradient>
       </defs>
 
-      {/* Ana forma rengi */}
-      <path d={jerseyPath} fill={primaryColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
+      {/* Ana forma rengi (gradient deseninde doğrudan gradyan dolgu kullanılır) */}
+      <path d={jerseyPath} fill={pattern === "gradient" ? "url(#jerseyGradient)" : primaryColor} stroke="rgba(0,0,0,0.25)" strokeWidth="1.5" />
 
       {/* Desen katmanı — forma şekliyle klip'lenir, dışına taşmaz */}
       <g clipPath="url(#jerseyClip)">
@@ -47,6 +54,15 @@ export function JerseyPreview({
           </>
         )}
         {pattern === "duz" && <rect x={0} y={0} width={40} height={200} fill={secondaryColor} opacity={0.85} />}
+        {pattern === "parcali" && <rect x={0} y={0} width={100} height={200} fill={secondaryColor} opacity={0.9} />}
+        {pattern === "geometrik" &&
+          Array.from({ length: 6 }).map((_, i) => (
+            <polygon key={i} points="10,10 25,25 10,40 -5,25" transform={`translate(${(i % 3) * 65}, ${Math.floor(i / 3) * 90})`} fill={secondaryColor} opacity={0.85} />
+          ))}
+        {pattern === "kamuflaj" &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <ellipse key={i} cx={(i * 47) % 200} cy={(i * 71) % 200} rx={22} ry={16} fill={i % 2 ? secondaryColor : tertiaryColor ?? secondaryColor} opacity={0.6} />
+          ))}
       </g>
 
       {/* Yaka */}
