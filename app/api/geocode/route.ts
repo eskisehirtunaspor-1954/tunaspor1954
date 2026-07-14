@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const results = await res.json();
     const first = Array.isArray(results) ? results[0] : null;
     if (!first) {
-      return NextResponse.json({ error: "Bu adres için konum bulunamadı. Adresi biraz daha genelleştirip tekrar deneyin." }, { status: 404 });
+      return NextResponse.json({ error: "Adres bulunamadı. Lütfen daha ayrıntılı bir adres giriniz." }, { status: 404 });
     }
 
     return NextResponse.json({

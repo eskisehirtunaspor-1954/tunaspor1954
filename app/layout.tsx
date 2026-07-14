@@ -63,7 +63,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { data: contactInfo } = await supabase
     .from("contact_info")
     .select(
-      "whatsapp_channel_url, instagram_url, facebook_url, youtube_url, address, map_lat, map_lng, saha_name, saha_address, saha_map_lat, saha_map_lng"
+      "whatsapp_channel_url, instagram_url, facebook_url, youtube_url, location_name, address, map_lat, map_lng, saha_name, saha_address, saha_map_lat, saha_map_lng"
     )
     .eq("id", 1)
     .single();

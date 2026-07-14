@@ -22,6 +22,7 @@ interface ContactInfo {
   instagram_url?: string | null;
   facebook_url?: string | null;
   youtube_url?: string | null;
+  location_name?: string | null;
   address?: string | null;
   map_lat?: number | null;
   map_lng?: number | null;
@@ -97,7 +98,7 @@ export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
         <h3 className="eyebrow mb-4">Konumlarımız</h3>
         <div className="grid gap-6 md:grid-cols-2">
           <LocationCard
-            name="Tunaspor 1954 Kulüp Binası"
+            name={contactInfo?.location_name || "Tunaspor 1954 Kulüp Binası"}
             address={contactInfo?.address}
             lat={contactInfo?.map_lat}
             lng={contactInfo?.map_lng}
