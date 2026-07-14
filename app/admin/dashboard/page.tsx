@@ -37,6 +37,7 @@ const MODULES = [
   { href: "/admin/dashboard/siparisler", label: "Siparişler" },
   { href: "/admin/dashboard/scoutlar", label: "Scout Başvuruları" },
   { href: "/admin/dashboard/scout-talepleri", label: "Scout İletişim Talepleri" },
+  { href: "/admin/dashboard/taraftar-uyelikleri", label: "Taraftar Üyelikleri" },
 ];
 
 export default function AdminDashboardPage() {

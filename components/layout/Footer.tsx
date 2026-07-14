@@ -1,16 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { Instagram, Facebook, Youtube, MessageCircle } from "lucide-react";
+import { Instagram, Facebook, Youtube, MessageCircle, MapPin } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { VisitorCounter } from "@/components/home/VisitorCounter";
-
-// Leaflet window nesnesine ihtiyaç duyar — yalnızca istemci tarafında render edilir.
-const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.ClubMap), {
-  ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
-});
 
 // Kulübün gerçek sosyal medya adresleri — admin panelinden (İletişim Bilgileri)
 // override edilmezse bu varsayılan gerçek linkler kullanılır.
@@ -22,38 +15,6 @@ interface ContactInfo {
   instagram_url?: string | null;
   facebook_url?: string | null;
   youtube_url?: string | null;
-  location_name?: string | null;
-  address?: string | null;
-  map_lat?: number | null;
-  map_lng?: number | null;
-  saha_name?: string | null;
-  saha_address?: string | null;
-  saha_map_lat?: number | null;
-  saha_map_lng?: number | null;
-}
-
-function LocationCard({
-  name, address, lat, lng, variant,
-}: { name: string; address?: string | null; lat?: number | null; lng?: number | null; variant: "club" | "pitch" }) {
-  const hasCoords = Boolean(lat && lng);
-
-  return (
-    <div className="glass-panel overflow-hidden">
-      <div className="aspect-video w-full">
-        {hasCoords ? (
-          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} variant={variant} />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-white/5 text-center text-sm text-tuna-mist px-4">
-            Konum yakında eklenecek
-          </div>
-        )}
-      </div>
-      <div className="p-4">
-        <h4 className="font-semibold text-sm mb-1">{name}</h4>
-        {address && <p className="text-xs text-tuna-mist">{address}</p>}
-      </div>
-    </div>
-  );
 }
 
 export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
@@ -66,27 +27,6 @@ export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
 
   return (
     <footer className="relative z-20 border-t border-white/10 mt-24 bg-tuna-charcoal">
-      {/* KONUMLARIMIZ — Kulüp Binası + Saha, her zaman görünür */}
-      <div className="max-w-7xl mx-auto px-4 pt-12">
-        <h3 className="eyebrow mb-4">Konumlarımız</h3>
-        <div className="grid gap-6 md:grid-cols-2">
-          <LocationCard
-            name={contactInfo?.location_name || "Tunaspor 1954 Kulüp Binası"}
-            address={contactInfo?.address}
-            lat={contactInfo?.map_lat}
-            lng={contactInfo?.map_lng}
-            variant="club"
-          />
-          <LocationCard
-            name={contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası"}
-            address={contactInfo?.saha_address}
-            lat={contactInfo?.saha_map_lat}
-            lng={contactInfo?.saha_map_lng}
-            variant="pitch"
-          />
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 py-12 grid gap-10 md:grid-cols-4">
         <div>
           <h3 className="font-display text-2xl text-tuna-yellow mb-2">TUNASPOR 1954</h3>
@@ -98,6 +38,11 @@ export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
             <li><Link href="/kulubumuz" className="hover:text-white">{t("nav_about")}</Link></li>
             <li><Link href="/takimlar" className="hover:text-white">{t("nav_teams")}</Link></li>
             <li><Link href="/akademi" className="hover:text-white">{t("nav_academy")}</Link></li>
+            <li>
+              <Link href="/#konumlarimiz" className="hover:text-white inline-flex items-center gap-1">
+                <MapPin size={13} /> Konumlarımız
+              </Link>
+            </li>
           </ul>
         </div>
         <div>

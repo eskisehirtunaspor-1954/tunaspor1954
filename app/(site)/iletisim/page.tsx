@@ -63,9 +63,11 @@ export default async function IletisimPage() {
             <ClubMap
               lat={Number(info.map_lat)}
               lng={Number(info.map_lng)}
-              name={info?.location_name || "Tunaspor 1954 Kulüp Binası"}
+              name={info?.location_name || "Tunaspor 1954 Kulüp Merkezi"}
               address={info?.address}
-              variant="club"
+              description={info?.map_description}
+              phone={info?.phone}
+              variant={info?.map_marker_icon || "club_logo"}
             />
           </div>
         )}

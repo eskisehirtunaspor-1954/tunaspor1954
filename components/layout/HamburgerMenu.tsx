@@ -68,6 +68,7 @@ export function HamburgerMenu({ open, onClose }: Props) {
     { href: "/mini-oyun", label: "Mini Oyun: Penaltı" },
     { href: "/dunyada-tunaspor", label: "Dünyadaki Tunaspor" },
     { href: "/magaza", label: "Kulüp Mağazası" },
+    { href: "/taraftar/giris", label: "Taraftar Paneli" },
     { href: "/veli/giris", label: "Veli Paneli" },
     { href: "/scout/giris", label: "Scout Paneli" },
     { href: "/lig-durumu", label: t("nav_standings") },

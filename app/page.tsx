@@ -4,6 +4,7 @@ import { EskisehirInfoPanel } from "@/components/home/EskisehirInfoPanel";
 import { StatsCounters } from "@/components/home/StatsCounters";
 import { ExtraCards } from "@/components/home/ExtraCards";
 import { SocialFeed } from "@/components/home/SocialFeed";
+import { LocationsSection } from "@/components/home/LocationsSection";
 import { ScrollReveal, StaggerGrid, StaggerItem } from "@/components/layout/ScrollReveal";
 import { T } from "@/components/layout/T";
 import { StickyCtaBar } from "@/components/home/StickyCtaBar";
@@ -181,6 +182,11 @@ export default async function HomePage() {
           ))}
         </StaggerGrid>
       </section>
+
+      {/* KONUMLARIMIZ */}
+      <ScrollReveal variant="fadeUp">
+        <LocationsSection contactInfo={contactInfo} />
+      </ScrollReveal>
 
       {/* İLETİŞİM CTA */}
       <ScrollReveal variant="fadeUp">

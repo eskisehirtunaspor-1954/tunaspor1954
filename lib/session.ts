@@ -142,3 +142,34 @@ export async function verifyCoachSessionToken(token: string): Promise<CoachSessi
     return null;
   }
 }
+
+// ---- Taraftar (fan/supporter) ----
+// Diğer izole oturumlarla (veli/scout/antrenör) birebir aynı desen: kendi "kind"
+// ayracı sayesinde admin/veli/scout/antrenör token'ları bu panele asla kabul edilmez.
+
+export interface TaraftarSessionPayload extends JWTPayload {
+  taraftarId: string;
+  email: string;
+  kind: "taraftar";
+}
+
+const TARAFTAR_SESSION_TTL = "30d";
+
+export async function signTaraftarSessionToken(payload: TaraftarSessionPayload): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(TARAFTAR_SESSION_TTL)
+    .sign(encodedSecret());
+}
+
+export async function verifyTaraftarSessionToken(token: string): Promise<TaraftarSessionPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, encodedSecret());
+    const decoded = payload as TaraftarSessionPayload;
+    if (decoded.kind !== "taraftar") return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}

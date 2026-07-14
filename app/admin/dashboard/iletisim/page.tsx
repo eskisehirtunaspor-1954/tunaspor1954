@@ -10,12 +10,22 @@ const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.
   loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
 });
 
+type MarkerIcon = "club_logo" | "football" | "pin_generic";
+
 interface ContactInfo {
   address?: string; contact_person?: string; phone?: string; whatsapp_number?: string; whatsapp_channel_url?: string; email?: string;
   instagram_url?: string; facebook_url?: string; youtube_url?: string;
   location_name?: string; map_lat?: number; map_lng?: number;
+  map_description?: string; map_marker_icon?: MarkerIcon; map_active?: boolean;
   saha_name?: string; saha_address?: string; saha_map_lat?: number; saha_map_lng?: number;
+  saha_map_description?: string; saha_map_marker_icon?: MarkerIcon; saha_map_active?: boolean;
 }
+
+const MARKER_ICON_OPTIONS: { value: MarkerIcon; label: string }[] = [
+  { value: "club_logo", label: "Kulüp Logosu" },
+  { value: "football", label: "Futbol Topu" },
+  { value: "pin_generic", label: "Sade Konum İğnesi" },
+];
 
 const NOT_FOUND_MESSAGE = "Adres bulunamadı. Lütfen daha ayrıntılı bir adres giriniz.";
 
@@ -39,25 +49,38 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 // dahil) belirir. Hiçbir zaman ham enlem/boylam, URL ya da iframe kodu
 // istenmez/gösterilmez.
 function LocationEditor({
-  title, name, address, lat, lng, onNameChange, onAddressChange, error, variant,
+  title, name, address, description, lat, lng, markerIcon, active,
+  onNameChange, onAddressChange, onDescriptionChange, onMarkerIconChange, onActiveChange, error, defaultVariant,
 }: {
   title: string;
   name: string;
   address: string;
+  description: string;
   lat?: number;
   lng?: number;
+  markerIcon: MarkerIcon;
+  active: boolean;
   onNameChange: (v: string) => void;
   onAddressChange: (v: string) => void;
+  onDescriptionChange: (v: string) => void;
+  onMarkerIconChange: (v: MarkerIcon) => void;
+  onActiveChange: (v: boolean) => void;
   error?: string | null;
-  variant: "club" | "pitch";
+  defaultVariant: MarkerIcon;
 }) {
   const hasCoords = Boolean(lat && lng);
   return (
     <div className="md:col-span-2 pt-3 border-t border-white/10 space-y-3">
-      <p className="text-sm text-tuna-mist">{title}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-tuna-mist">{title}</p>
+        <label className="flex items-center gap-1.5 text-xs text-tuna-mist">
+          <input type="checkbox" checked={active} onChange={(e) => onActiveChange(e.target.checked)} />
+          Ana sayfada göster (aktif)
+        </label>
+      </div>
       <div className="grid md:grid-cols-2 gap-3">
         <input
-          placeholder="Harita Adı (ör. Kulüp Binası)"
+          placeholder="Harita Adı (ör. Kulüp Merkezi)"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
           className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
@@ -68,11 +91,26 @@ function LocationEditor({
           onChange={(e) => onAddressChange(e.target.value)}
           className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
         />
+        <input
+          placeholder="Harita Açıklaması (opsiyonel, ör. Antrenmanlar burada yapılır)"
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
+        />
+        <select
+          value={markerIcon || defaultVariant}
+          onChange={(e) => onMarkerIconChange(e.target.value as MarkerIcon)}
+          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
+        >
+          {MARKER_ICON_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
       </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {hasCoords && (
         <div className="aspect-video w-full max-w-md overflow-hidden rounded-xl border border-white/10">
-          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} variant={variant} />
+          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} description={description} variant={markerIcon || defaultVariant} />
         </div>
       )}
     </div>
@@ -152,26 +190,38 @@ export default function Page() {
 
         <LocationEditor
           title="Harita Yönetimi — Konum 1"
-          name={info.location_name ?? "Tunaspor 1954 Kulüp Binası"}
+          name={info.location_name ?? "Tunaspor 1954 Kulüp Merkezi"}
           address={info.address ?? ""}
+          description={info.map_description ?? ""}
           lat={info.map_lat}
           lng={info.map_lng}
+          markerIcon={info.map_marker_icon ?? "club_logo"}
+          active={info.map_active !== false}
           onNameChange={(v) => setInfo({ ...info, location_name: v })}
           onAddressChange={(v) => setInfo({ ...info, address: v })}
+          onDescriptionChange={(v) => setInfo({ ...info, map_description: v })}
+          onMarkerIconChange={(v) => setInfo({ ...info, map_marker_icon: v })}
+          onActiveChange={(v) => setInfo({ ...info, map_active: v })}
           error={clubError}
-          variant="club"
+          defaultVariant="club_logo"
         />
 
         <LocationEditor
           title="Harita Yönetimi — Konum 2"
           name={info.saha_name ?? "Ediz Bahtiyaroğlu Sahası"}
           address={info.saha_address ?? ""}
+          description={info.saha_map_description ?? ""}
           lat={info.saha_map_lat}
           lng={info.saha_map_lng}
+          markerIcon={info.saha_map_marker_icon ?? "football"}
+          active={info.saha_map_active !== false}
           onNameChange={(v) => setInfo({ ...info, saha_name: v })}
           onAddressChange={(v) => setInfo({ ...info, saha_address: v })}
+          onDescriptionChange={(v) => setInfo({ ...info, saha_map_description: v })}
+          onMarkerIconChange={(v) => setInfo({ ...info, saha_map_marker_icon: v })}
+          onActiveChange={(v) => setInfo({ ...info, saha_map_active: v })}
           error={sahaError}
-          variant="pitch"
+          defaultVariant="football"
         />
 
         <button disabled={saving} className="md:col-span-2 bg-tuna-yellow text-tuna-black font-semibold py-2 rounded-lg disabled:opacity-50 mt-3">

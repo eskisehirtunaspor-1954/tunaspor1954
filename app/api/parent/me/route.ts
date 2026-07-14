@@ -27,7 +27,9 @@ export async function GET(req: NextRequest) {
 
   const { data: players } = await supabase
     .from("players")
-    .select("id, full_name, position, jersey_number, photo_url, team_id, teams(display_name, category)")
+    .select(
+      "id, full_name, position, jersey_number, photo_url, team_id, teams(display_name, category), license_status, license_expiry_date, health_status, document_status"
+    )
     .in("id", playerIds);
 
   const teamIds = Array.from(new Set((players ?? []).map((p: any) => p.team_id).filter(Boolean)));
@@ -38,6 +40,8 @@ export async function GET(req: NextRequest) {
     { data: reports },
     { data: fees },
     { data: announcements },
+    { data: evaluations },
+    { data: squads },
   ] = await Promise.all([
     teamIds.length
       ? supabase
@@ -72,7 +76,29 @@ export async function GET(req: NextRequest) {
       .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("player_coach_evaluations")
+      .select("*")
+      .in("player_id", playerIds)
+      .order("created_at", { ascending: true })
+      .limit(50),
+    // "Oynadığı maçlar" — kadroya girdiği maçlar, bitmiş maç sonucuyla birlikte.
+    supabase
+      .from("match_squads")
+      .select("*, fixtures(opponent, home_or_away, match_date, competition, home_score, away_score, status)")
+      .in("player_id", playerIds)
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
+
+  // Yaz/kış futbol okulu, kamp, turnuva gibi yaklaşan etkinlikler — çocuğa özel
+  // değil, herkese açık genel etkinlik takvimiyle aynı kaynak.
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title, type, start_date, location, registration_open")
+    .gte("start_date", new Date().toISOString())
+    .order("start_date", { ascending: true })
+    .limit(8);
 
   return NextResponse.json({
     parent,
@@ -82,5 +108,8 @@ export async function GET(req: NextRequest) {
     reports: reports ?? [],
     fees: fees ?? [],
     announcements: announcements ?? [],
+    evaluations: evaluations ?? [],
+    squads: squads ?? [],
+    events: events ?? [],
   });
 }

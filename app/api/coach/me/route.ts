@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
   const teamIds = teams.map((t: any) => t.id);
 
   if (!teamIds.length) {
-    return NextResponse.json({ coach, teams: [], players: [], upcomingSessions: [], attendance: [], reports: [] });
+    return NextResponse.json({
+      coach, teams: [], players: [], upcomingSessions: [], attendance: [], reports: [],
+      evaluations: [], fixtures: [], squads: [],
+    });
   }
 
   const [
@@ -32,6 +35,8 @@ export async function GET(req: NextRequest) {
     { data: upcomingSessions },
     { data: attendance },
     { data: reports },
+    { data: evaluations },
+    { data: fixtures },
   ] = await Promise.all([
     supabase.from("players").select("*").in("team_id", teamIds).eq("is_published", true).order("jersey_number"),
     supabase
@@ -52,10 +57,22 @@ export async function GET(req: NextRequest) {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100),
+    supabase
+      .from("player_coach_evaluations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase.from("fixtures").select("*").in("team_id", teamIds).order("match_date", { ascending: false }).limit(30),
   ]);
 
   const playerIds = new Set((players ?? []).map((p: any) => p.id));
   const scopedReports = (reports ?? []).filter((r: any) => playerIds.has(r.player_id));
+  const scopedEvaluations = (evaluations ?? []).filter((e: any) => playerIds.has(e.player_id));
+
+  const fixtureIds = (fixtures ?? []).map((f: any) => f.id);
+  const { data: squads } = fixtureIds.length
+    ? await supabase.from("match_squads").select("*").in("fixture_id", fixtureIds)
+    : { data: [] };
 
   return NextResponse.json({
     coach,
@@ -64,5 +81,8 @@ export async function GET(req: NextRequest) {
     upcomingSessions: upcomingSessions ?? [],
     attendance: attendance ?? [],
     reports: scopedReports,
+    evaluations: scopedEvaluations,
+    fixtures: fixtures ?? [],
+    squads: squads ?? [],
   });
 }

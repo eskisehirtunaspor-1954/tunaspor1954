@@ -5,32 +5,49 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 
-export type MapMarkerKind = "club" | "pitch";
+export type MapMarkerIcon = "club_logo" | "football" | "pin_generic";
 
 interface ClubMapProps {
   lat: number;
   lng: number;
   name: string;
   address?: string | null;
-  variant?: MapMarkerKind;
+  description?: string | null;
+  phone?: string | null;
+  variant?: MapMarkerIcon;
   zoom?: number;
 }
 
-// Kulüp binası için gerçek logo, saha için stilize bir futbol topu rozeti —
-// iki konum haritada birbirinden ayırt edilsin diye farklı pin ikonu kullanılır.
-function buildPinIcon(kind: MapMarkerKind) {
+function isAppleDevice(): boolean {
+  return typeof navigator !== "undefined" && /iphone|ipad|ipod|macintosh/i.test(navigator.userAgent) && "ontouchend" in document;
+}
+
+function directionsUrl(lat: number, lng: number): string {
+  const query = `${lat},${lng}`;
+  return isAppleDevice()
+    ? `https://maps.apple.com/?daddr=${query}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
+}
+
+// Admin panelinden seçilebilen üç pin stili: kulüp logosu, futbol topu rozeti,
+// veya sade/genel bir konum iğnesi — iki konum haritada birbirinden ayırt
+// edilsin ve yönetici ihtiyaca göre değiştirebilsin diye.
+function buildPinIcon(kind: MapMarkerIcon) {
   const clipId = `tuna-pin-clip-${kind}`;
   const badge =
-    kind === "club"
+    kind === "club_logo"
       ? `<clipPath id="${clipId}"><circle cx="22" cy="22" r="15"/></clipPath>
          <circle cx="22" cy="22" r="16" fill="#FFD700"/>
          <image href="/images/logo.png" x="6" y="6" width="32" height="32" clip-path="url(#${clipId})" />`
-      : `<circle cx="22" cy="22" r="16" fill="#FFD700"/>
+      : kind === "football"
+      ? `<circle cx="22" cy="22" r="16" fill="#FFD700"/>
          <g fill="none" stroke="#050505" stroke-width="1.6">
            <circle cx="22" cy="22" r="10.5"/>
            <path d="M22 13.2l6.6 4.8-2.5 7.9h-8.2l-2.5-7.9z" fill="#050505" stroke="none"/>
            <path d="M22 13.2v-2.8M28.6 18l2.9-1.7M25.9 25.9l1.7 2.7M18.1 25.9l-1.7 2.7M15.4 18l-2.9-1.7"/>
-         </g>`;
+         </g>`
+      : `<circle cx="22" cy="22" r="16" fill="#FFD700"/>
+         <circle cx="22" cy="22" r="6" fill="#050505"/>`;
 
   const html = `
     <div style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55));">
@@ -109,7 +126,7 @@ function MapControls({ lat, lng, wrapperRef }: { lat: number; lng: number; wrapp
       <FullscreenSync onChange={setIsFullscreen} />
       <div className="pointer-events-none absolute top-3 right-3 z-[1000] flex flex-col items-end gap-2">
         <a
-          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`}
+          href={directionsUrl(lat, lng)}
           target="_blank"
           rel="noopener noreferrer"
           className="pointer-events-auto text-xs font-medium bg-tuna-black/80 backdrop-blur border border-tuna-gold/40 text-tuna-gold px-3 py-1.5 rounded-full hover:bg-tuna-gold/10 hover:border-tuna-gold transition-colors shadow-glass"
@@ -139,7 +156,7 @@ function MapControls({ lat, lng, wrapperRef }: { lat: number; lng: number; wrapp
 // OpenStreetMap tabanlı, API anahtarı gerektirmeyen interaktif harita. Google Maps
 // JS API'nin aksine ücretsizdir ve bu projenin CSP'sinde yalnızca img-src'e tile
 // sunucusunu eklemek yeterlidir (iframe/frame-src gerekmez).
-export function ClubMap({ lat, lng, name, address, variant = "club", zoom = 16 }: ClubMapProps) {
+export function ClubMap({ lat, lng, name, address, description, phone, variant = "club_logo", zoom = 16 }: ClubMapProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -158,9 +175,25 @@ export function ClubMap({ lat, lng, name, address, variant = "club", zoom = 16 }
           />
           <Marker position={[lat, lng]} icon={buildPinIcon(variant)}>
             <Popup className="tuna-popup">
-              <div className="text-sm">
-                <p className="font-semibold text-tuna-gold mb-1">{name}</p>
-                {address && <p className="text-xs text-tuna-mist">{address}</p>}
+              <div className="text-sm space-y-1">
+                <p className="font-semibold text-tuna-gold">{name}</p>
+                {description && <p className="text-xs text-tuna-mist">{description}</p>}
+                {address && <p className="text-xs text-tuna-mist">📍 {address}</p>}
+                {phone && (
+                  <p className="text-xs">
+                    <a href={`tel:${phone.replace(/\s/g, "")}`} className="text-tuna-mist hover:text-white">
+                      📞 {phone}
+                    </a>
+                  </p>
+                )}
+                <a
+                  href={directionsUrl(lat, lng)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-1 text-xs text-tuna-gold hover:underline"
+                >
+                  🧭 Yol Tarifi Al
+                </a>
               </div>
             </Popup>
           </Marker>

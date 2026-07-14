@@ -23,6 +23,37 @@ export default function Page() {
     { name: "photo_url", label: "Fotoğraf", type: "image" },
     { name: "license_no", label: "Lisans Numarası" },
     {
+      name: "license_status",
+      label: "Lisans Durumu",
+      type: "select",
+      options: [
+        { value: "gecerli", label: "Geçerli" },
+        { value: "suresi_doldu", label: "Süresi Doldu" },
+        { value: "beklemede", label: "Beklemede" },
+      ],
+    },
+    { name: "license_expiry_date", label: "Lisans Son Geçerlilik Tarihi", type: "date" },
+    {
+      name: "health_status",
+      label: "Sağlık Durumu",
+      type: "select",
+      options: [
+        { value: "uygun", label: "Uygun" },
+        { value: "kontrol_gerekli", label: "Kontrol Gerekli" },
+        { value: "sakatlik", label: "Sakatlık" },
+      ],
+    },
+    {
+      name: "document_status",
+      label: "Evrak Durumu",
+      type: "select",
+      options: [
+        { value: "tamamlandi", label: "Tamamlandı" },
+        { value: "eksik", label: "Eksik" },
+        { value: "beklemede", label: "Beklemede" },
+      ],
+    },
+    {
       name: "preferred_foot",
       label: "Ayak Tercihi",
       type: "select",
