@@ -30,6 +30,8 @@ const MODULES = [
   { href: "/admin/dashboard/veliler", label: "Veli Hesapları" },
   { href: "/admin/dashboard/antrenorler", label: "Antrenör Hesapları" },
   { href: "/admin/dashboard/aidatlar", label: "Aidatlar" },
+  { href: "/admin/dashboard/devam-durumu", label: "Oyuncu Durumu" },
+  { href: "/admin/dashboard/veli-bildirimleri", label: "Veli Bildirimleri" },
   { href: "/admin/dashboard/akademi-duyurulari", label: "Akademi Duyuruları" },
   { href: "/admin/dashboard/urunler", label: "Mağaza Ürünleri" },
   { href: "/admin/dashboard/siparisler", label: "Siparişler" },

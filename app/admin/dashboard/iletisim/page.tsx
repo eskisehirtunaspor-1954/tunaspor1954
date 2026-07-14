@@ -10,9 +10,49 @@ interface ContactInfo {
   saha_name?: string; saha_address?: string; saha_map_lat?: number; saha_map_lng?: number;
 }
 
+// Adresi enlem/boylama çevirir (Nominatim, API anahtarı gerekmez). Admin artık
+// hiçbir zaman koordinat yazmıyor — yalnızca adres girip bu butona basıyor.
+function useGeocoder() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [foundLabel, setFoundLabel] = useState<string | null>(null);
+
+  async function geocode(address: string, onFound: (lat: number, lng: number) => void) {
+    if (!address.trim()) {
+      setError("Önce bir adres yazın.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setFoundLabel(null);
+    try {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Konum bulunamadı.");
+        return;
+      }
+      onFound(data.lat, data.lng);
+      setFoundLabel(`✓ Konum bulundu: ${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}`);
+    } catch {
+      setError("Konum servisi şu anda yanıt vermiyor.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return { geocode, loading, error, foundLabel };
+}
+
 export default function Page() {
   const [info, setInfo] = useState<ContactInfo>({});
   const [saving, setSaving] = useState(false);
+  const clubGeo = useGeocoder();
+  const sahaGeo = useGeocoder();
 
   useEffect(() => {
     fetch("/api/admin/contact-info").then((r) => r.json()).then((d) => setInfo(d.data ?? {}));
@@ -43,18 +83,19 @@ export default function Page() {
             className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
           />
         ))}
-        <input
-          type="number" step="any" placeholder="Harita Enlem (lat)"
-          value={info.map_lat ?? ""}
-          onChange={(e) => setInfo({ ...info, map_lat: parseFloat(e.target.value) })}
-          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
-        />
-        <input
-          type="number" step="any" placeholder="Harita Boylam (lng)"
-          value={info.map_lng ?? ""}
-          onChange={(e) => setInfo({ ...info, map_lng: parseFloat(e.target.value) })}
-          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
-        />
+
+        <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={clubGeo.loading}
+            onClick={() => clubGeo.geocode(info.address ?? "", (lat, lng) => setInfo((prev) => ({ ...prev, map_lat: lat, map_lng: lng })))}
+            className="text-sm border border-tuna-gold/40 text-tuna-gold px-4 py-2 rounded-full hover:bg-tuna-gold/10 disabled:opacity-50"
+          >
+            {clubGeo.loading ? "Aranıyor..." : "📍 Konumu Bul (Kulüp Binası)"}
+          </button>
+          {clubGeo.foundLabel && <span className="text-xs text-emerald-400">{clubGeo.foundLabel}</span>}
+          {clubGeo.error && <span className="text-xs text-red-400">{clubGeo.error}</span>}
+        </div>
 
         <div className="md:col-span-2 pt-3 border-t border-white/10 text-sm text-tuna-mist">
           İkinci Konum — Saha (ana sayfadaki ikinci harita kartı)
@@ -69,18 +110,19 @@ export default function Page() {
           onChange={(e) => setInfo({ ...info, saha_address: e.target.value })}
           className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
         />
-        <input
-          type="number" step="any" placeholder="Saha Harita Enlem (lat)"
-          value={info.saha_map_lat ?? ""}
-          onChange={(e) => setInfo({ ...info, saha_map_lat: parseFloat(e.target.value) })}
-          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
-        />
-        <input
-          type="number" step="any" placeholder="Saha Harita Boylam (lng)"
-          value={info.saha_map_lng ?? ""}
-          onChange={(e) => setInfo({ ...info, saha_map_lng: parseFloat(e.target.value) })}
-          className="bg-white/5 rounded-lg px-3 py-2 border border-white/10 outline-none focus:border-tuna-yellow"
-        />
+
+        <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={sahaGeo.loading}
+            onClick={() => sahaGeo.geocode(info.saha_address ?? "", (lat, lng) => setInfo((prev) => ({ ...prev, saha_map_lat: lat, saha_map_lng: lng })))}
+            className="text-sm border border-tuna-gold/40 text-tuna-gold px-4 py-2 rounded-full hover:bg-tuna-gold/10 disabled:opacity-50"
+          >
+            {sahaGeo.loading ? "Aranıyor..." : "📍 Konumu Bul (Saha)"}
+          </button>
+          {sahaGeo.foundLabel && <span className="text-xs text-emerald-400">{sahaGeo.foundLabel}</span>}
+          {sahaGeo.error && <span className="text-xs text-red-400">{sahaGeo.error}</span>}
+        </div>
 
         <button disabled={saving} className="md:col-span-2 bg-tuna-yellow text-tuna-black font-semibold py-2 rounded-lg disabled:opacity-50">
           {saving ? "Kaydediliyor..." : "Kaydet"}

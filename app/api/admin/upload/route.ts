@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getAdminSession } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 const BUCKET = "media";
 
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     contentType: file.type,
     upsert: false,
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return NextResponse.json({ url: publicUrlData.publicUrl, path, fileName: file.name });
@@ -86,7 +87,7 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.storage.from(BUCKET).remove([path]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

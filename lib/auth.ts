@@ -49,7 +49,7 @@ const YONETICI_PERMISSIONS = [
   "contact_messages", "contact_info", "social_links", "social_posts",
   "translations", "languages", "seo_settings", "performance", "ai_knowledge_base",
   "jersey_designs", "game_scores", "academy_announcements", "player_fees",
-  "products", "orders", "scout_contact_requests",
+  "products", "orders", "scout_contact_requests", "parent_notifications",
 ];
 
 const ROLE_PERMISSIONS: Record<AdminSessionPayload["role"], string[]> = {

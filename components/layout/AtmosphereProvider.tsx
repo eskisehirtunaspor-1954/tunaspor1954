@@ -12,6 +12,8 @@ interface AtmosphereContextValue {
   specialMoment: boolean; // saat tam 19:54 olduğunda ~5 saniye true
   soundEnabled: boolean;
   toggleSound: () => void;
+  volume: number; // 0-1
+  setVolume: (v: number) => void;
 }
 
 const AtmosphereContext = createContext<AtmosphereContextValue>({
@@ -20,6 +22,8 @@ const AtmosphereContext = createContext<AtmosphereContextValue>({
   specialMoment: false,
   soundEnabled: false,
   toggleSound: () => {},
+  volume: 0.7,
+  setVolume: () => {},
 });
 
 // Ses hiçbir zaman sayfa yüklenir yüklenmez başlamamalı — yalnızca kullanıcının
@@ -84,10 +88,13 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   // diye localStorage'a yazılır.
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [siteSoundEnabled, setSiteSoundEnabled] = useState(true);
+  const [volume, setVolumeState] = useState(0.7);
   const hasInteracted = useHasInteracted();
 
   useEffect(() => {
     setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") === "on");
+    const savedVolume = localStorage.getItem("tuna_atmosphere_volume");
+    if (savedVolume) setVolumeState(parseFloat(savedVolume));
   }, []);
 
   function toggleSound() {
@@ -96,6 +103,11 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("tuna_atmosphere_sound", next ? "on" : "off");
       return next;
     });
+  }
+
+  function setVolume(v: number) {
+    setVolumeState(v);
+    localStorage.setItem("tuna_atmosphere_volume", String(v));
   }
 
   useEffect(() => {
@@ -144,23 +156,45 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   // bu context'i dinleyen TÜM bileşenler (StadiumBackground, WeatherEffects,
   // Hero, LightningSystem, AmbientSoundscape...) gereksiz yere yeniden render olur.
   const value = useMemo(
-    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled: effectiveSoundEnabled, toggleSound }),
-    [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled]
+    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled: effectiveSoundEnabled, toggleSound, volume, setVolume }),
+    [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled, volume]
   );
+
+  const [volumePanelOpen, setVolumePanelOpen] = useState(false);
 
   return (
     <AtmosphereContext.Provider value={value}>
       <div data-atmosphere={atmosphere} className="transition-colors duration-[2500ms]">
         {children}
       </div>
-      <button
-        onClick={toggleSound}
-        aria-label={soundEnabled ? "Atmosfer sesini kapat" : "Atmosfer sesini aç"}
-        title="Atmosfer Sesi"
-        className="fixed bottom-24 left-5 z-40 glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
+      <div
+        className="fixed bottom-24 right-5 z-40 flex items-center gap-2"
+        onMouseEnter={() => setVolumePanelOpen(true)}
+        onMouseLeave={() => setVolumePanelOpen(false)}
       >
-        {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-      </button>
+        {volumePanelOpen && (
+          <div className="glass-panel px-3 py-2 flex items-center">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              aria-label="Ses seviyesi"
+              className="w-24 accent-tuna-gold"
+            />
+          </div>
+        )}
+        <button
+          onClick={toggleSound}
+          aria-label={soundEnabled ? "Atmosfer sesini kapat" : "Atmosfer sesini aç"}
+          title="Atmosfer Sesi"
+          className="glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
+        >
+          {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </button>
+      </div>
     </AtmosphereContext.Provider>
   );
 }

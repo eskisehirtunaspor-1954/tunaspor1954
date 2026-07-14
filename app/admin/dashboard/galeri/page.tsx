@@ -10,6 +10,7 @@ interface Album {
 
 export default function Page() {
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [teamOptions, setTeamOptions] = useState<{ value: string; label: string }[]>([]);
   const [bulkAlbumId, setBulkAlbumId] = useState("");
   const [photosKey, setPhotosKey] = useState(0);
 
@@ -18,7 +19,12 @@ export default function Page() {
       .then((r) => r.json())
       .then((d) => setAlbums(d.data ?? []));
   }
-  useEffect(() => { loadAlbums(); }, []);
+  useEffect(() => {
+    loadAlbums();
+    fetch("/api/admin/teams")
+      .then((r) => r.json())
+      .then((d) => setTeamOptions((d.data ?? []).map((t: any) => ({ value: t.id, label: t.display_name }))));
+  }, []);
 
   async function handleUploaded(url: string) {
     await fetch("/api/admin/gallery-photos", {
@@ -27,6 +33,8 @@ export default function Page() {
       body: JSON.stringify({ album_id: bulkAlbumId, image_url: url }),
     });
   }
+
+  const albumOptions = albums.map((a) => ({ value: a.id, label: a.title }));
 
   return (
     <div>
@@ -37,7 +45,7 @@ export default function Page() {
         subtitleField="media_type"
         fields={[
           { name: "title", label: "Albüm Başlığı", required: true },
-          { name: "team_id", label: "Takım ID (uuid, opsiyonel)" },
+          { name: "team_id", label: "Takım / Kategori (opsiyonel)", type: "select", options: teamOptions },
           { name: "media_type", label: "Kategori", type: "select", required: true, options: [
             { value: "fotograf", label: "Fotoğraf" },
             { value: "drone", label: "Drone Görüntüsü" },
@@ -83,7 +91,7 @@ export default function Page() {
         titleField="image_url"
         subtitleField="caption"
         fields={[
-          { name: "album_id", label: "Albüm ID (uuid)", required: true },
+          { name: "album_id", label: "Albüm", type: "select", options: albumOptions, required: true },
           { name: "image_url", label: "Fotoğraf", type: "image", folder: "gallery", required: true },
           { name: "caption", label: "Açıklama" },
           { name: "sort_order", label: "Sıralama", type: "number" },

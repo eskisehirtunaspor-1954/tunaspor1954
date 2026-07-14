@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 const SAFE_COLUMNS = "id, email, full_name, role, is_active, totp_enabled, last_login_at, created_at";
 
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data, error } = await supabase.from("admin_users").select(SAFE_COLUMNS).order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ data });
 }
 
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data, error } = await supabase.from("admin_users").update(updates).eq("id", id).select(SAFE_COLUMNS).single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   await supabase.from("admin_audit_log").insert({
     admin_id: access.session.sub, action: "update", entity: "admin_users", entity_id: id, metadata: updates,
@@ -58,7 +59,7 @@ export async function DELETE(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("admin_users").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   await supabase.from("admin_audit_log").insert({
     admin_id: access.session.sub, action: "delete", entity: "admin_users", entity_id: id,

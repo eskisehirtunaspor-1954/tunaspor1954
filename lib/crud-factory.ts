@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 interface CrudOptions {
   table: string;
@@ -21,7 +22,7 @@ export function createCrudHandlers({ table, moduleName, defaultOrder }: CrudOpti
     if (defaultOrder) query = query.order(defaultOrder.column, { ascending: defaultOrder.ascending ?? false });
 
     const { data, error } = await query;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
     return NextResponse.json({ data });
   }
 
@@ -34,7 +35,7 @@ export function createCrudHandlers({ table, moduleName, defaultOrder }: CrudOpti
 
     const supabase = createServiceClient();
     const { data, error } = await supabase.from(table).insert(body).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
     await supabase.from("admin_audit_log").insert({
       admin_id: access.session.sub,
@@ -57,7 +58,7 @@ export function createCrudHandlers({ table, moduleName, defaultOrder }: CrudOpti
     const { id, ...updates } = body;
     const supabase = createServiceClient();
     const { data, error } = await supabase.from(table).update(updates).eq("id", id).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
     await supabase.from("admin_audit_log").insert({
       admin_id: access.session.sub,
@@ -79,7 +80,7 @@ export function createCrudHandlers({ table, moduleName, defaultOrder }: CrudOpti
 
     const supabase = createServiceClient();
     const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
     await supabase.from("admin_audit_log").insert({
       admin_id: access.session.sub,

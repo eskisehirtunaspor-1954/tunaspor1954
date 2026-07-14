@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 export async function GET(req: NextRequest) {
   const access = await requireModuleAccess(req, "scout_accounts");
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     .select("id, club_name, contact_name, email, phone, is_approved, is_active, last_login_at, created_at")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
 }
 
@@ -32,7 +33,7 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("scout_accounts").update(updates).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   await supabase.from("admin_audit_log").insert({
     admin_id: access.session.sub,

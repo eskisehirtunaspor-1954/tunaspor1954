@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 // Haberlere eklenen PDF/DOCX belgeleri — "news" modülünün bir parçası, ayrı bir
 // izin adı yok (haber üzerinde düzenleme yetkisi olan zaten ekini de yönetebilir).
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     .select("*")
     .eq("news_id", newsId)
     .order("created_at", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ data });
 }
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ data });
 }
 
@@ -59,6 +60,6 @@ export async function DELETE(req: NextRequest) {
   }
 
   const { error } = await supabase.from("news_attachments").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

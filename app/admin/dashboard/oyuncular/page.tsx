@@ -35,6 +35,13 @@ export default function Page() {
     { name: "joined_at", label: "Takıma Katılış Tarihi", type: "date" },
     { name: "bio", label: "Biyografi", type: "textarea" },
     { name: "is_published", label: "Yayınla", type: "checkbox" },
+    { name: "parent_name", label: "Veli Adı Soyadı" },
+    { name: "parent_phone", label: "Veli Telefonu" },
+    { name: "parent_email", label: "Veli E-postası" },
+    { name: "missed_trainings_count", label: "Katılmadığı Antrenman Sayısı (otomatik, elle düzeltilebilir)", type: "number" },
+    { name: "fee_paid_total", label: "Ödenen Aidat (₺)", type: "number" },
+    { name: "fee_balance", label: "Kalan Aidat Borcu (₺)", type: "number" },
+    { name: "fee_last_payment_at", label: "Son Ödeme Tarihi", type: "date" },
   ];
 
   return (

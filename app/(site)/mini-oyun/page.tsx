@@ -2,6 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { PenaltyGame } from "@/components/game/PenaltyGame";
+import { FreeKickGame } from "@/components/game/FreeKickGame";
+import { GoalkeeperSaveGame } from "@/components/game/GoalkeeperSaveGame";
+import { BallJugglingGame } from "@/components/game/BallJugglingGame";
+import { SlalomDribbleGame } from "@/components/game/SlalomDribbleGame";
+
+type GameType = "penalti" | "serbest_vurus" | "kaleci_kurtaris" | "top_sektirme" | "slalom_dripling";
+
+const GAMES: { type: GameType; title: string; description: string; icon: string }[] = [
+  { type: "penalti", title: "Penaltı Atışı", description: "5 penaltı at, kaç gol atabileceğine bak.", icon: "⚽" },
+  { type: "serbest_vurus", title: "Serbest Vuruş", description: "Duvarın üzerinden köşeyi bul.", icon: "🎯" },
+  { type: "kaleci_kurtaris", title: "Kaleci Kurtarış", description: "Kaleye geç, doğru köşeye uç.", icon: "🧤" },
+  { type: "top_sektirme", title: "Top Sektirme", description: "Tam zamanında dokun, topu havada tut.", icon: "🤾" },
+  { type: "slalom_dripling", title: "Slalom & Dripling", description: "Rakiplerin arasından sıyrıl.", icon: "🏃" },
+];
 
 interface ScoreRow {
   nickname: string;
@@ -10,6 +24,7 @@ interface ScoreRow {
 }
 
 export default function MiniOyunPage() {
+  const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
   const [playing, setPlaying] = useState(false);
   const [finalScore, setFinalScore] = useState<number | null>(null);
   const [nickname, setNickname] = useState("");
@@ -18,24 +33,25 @@ export default function MiniOyunPage() {
   const [submitted, setSubmitted] = useState(false);
   const [leaderboard, setLeaderboard] = useState<ScoreRow[]>([]);
 
-  async function loadLeaderboard() {
-    const res = await fetch("/api/game-scores");
+  async function loadLeaderboard(gameType: GameType) {
+    const res = await fetch(`/api/game-scores?game_type=${gameType}`);
     const data = await res.json();
     setLeaderboard(data.data ?? []);
   }
+
   useEffect(() => {
-    loadLeaderboard();
-  }, []);
+    if (selectedGame) loadLeaderboard(selectedGame);
+  }, [selectedGame]);
 
   async function handleSubmitScore(e: React.FormEvent) {
     e.preventDefault();
-    if (finalScore === null) return;
+    if (finalScore === null || !selectedGame) return;
     setSubmitting(true);
     setSubmitError(null);
     const res = await fetch("/api/game-scores", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickname, score: finalScore }),
+      body: JSON.stringify({ nickname, score: finalScore, game_type: selectedGame }),
     });
     setSubmitting(false);
     const data = await res.json();
@@ -44,7 +60,7 @@ export default function MiniOyunPage() {
       return;
     }
     setSubmitted(true);
-    loadLeaderboard();
+    loadLeaderboard(selectedGame);
   }
 
   function resetGame() {
@@ -55,11 +71,42 @@ export default function MiniOyunPage() {
     setSubmitError(null);
   }
 
+  function backToMenu() {
+    resetGame();
+    setSelectedGame(null);
+  }
+
+  if (!selectedGame) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-20">
+        <p className="eyebrow mb-3">Tunaspor 1954</p>
+        <h1 className="font-display text-4xl mb-2">Mini Oyunlar</h1>
+        <p className="text-tuna-mist mb-10">Bir oyun seç, becerini test et, haftalık liderlik tablosuna gir!</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {GAMES.map((g) => (
+            <button
+              key={g.type}
+              onClick={() => setSelectedGame(g.type)}
+              className="glass-panel p-6 text-center hover:border-tuna-gold/50 hover:-translate-y-1 transition-all"
+            >
+              <div className="text-4xl mb-3">{g.icon}</div>
+              <p className="font-semibold mb-1">{g.title}</p>
+              <p className="text-xs text-tuna-mist">{g.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const gameInfo = GAMES.find((g) => g.type === selectedGame)!;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-20">
+      <button onClick={backToMenu} className="text-sm text-tuna-mist hover:text-white mb-4">← Oyun Menüsü</button>
       <p className="eyebrow mb-3">Tunaspor 1954</p>
-      <h1 className="font-display text-4xl mb-2">Penaltı Atışı</h1>
-      <p className="text-tuna-mist mb-10">5 penaltı at, kaç gol atabileceğine bak, haftalık liderlik tablosuna gir!</p>
+      <h1 className="font-display text-4xl mb-2">{gameInfo.title}</h1>
+      <p className="text-tuna-mist mb-10">{gameInfo.description}</p>
 
       <div className="glass-panel p-8 mb-10">
         {!playing && finalScore === null && (
@@ -68,23 +115,24 @@ export default function MiniOyunPage() {
               onClick={() => setPlaying(true)}
               className="bg-tuna-gold text-tuna-black font-semibold px-8 py-3 rounded-lg text-lg"
             >
-              ⚽ Oyuna Başla
+              {gameInfo.icon} Oyuna Başla
             </button>
           </div>
         )}
 
         {playing && finalScore === null && (
-          <PenaltyGame
-            onFinish={(score) => {
-              setFinalScore(score);
-              setPlaying(false);
-            }}
-          />
+          <>
+            {selectedGame === "penalti" && <PenaltyGame onFinish={(s) => { setFinalScore(s); setPlaying(false); }} />}
+            {selectedGame === "serbest_vurus" && <FreeKickGame onFinish={(s) => { setFinalScore(s); setPlaying(false); }} />}
+            {selectedGame === "kaleci_kurtaris" && <GoalkeeperSaveGame onFinish={(s) => { setFinalScore(s); setPlaying(false); }} />}
+            {selectedGame === "top_sektirme" && <BallJugglingGame onFinish={(s) => { setFinalScore(s); setPlaying(false); }} />}
+            {selectedGame === "slalom_dripling" && <SlalomDribbleGame onFinish={(s) => { setFinalScore(s); setPlaying(false); }} />}
+          </>
         )}
 
         {finalScore !== null && !submitted && (
           <div className="text-center py-4">
-            <p className="font-display text-3xl text-tuna-gold mb-4">{finalScore}/5 Gol!</p>
+            <p className="font-display text-3xl text-tuna-gold mb-4">{finalScore}/5</p>
             <form onSubmit={handleSubmitScore} className="flex flex-col items-center gap-3 max-w-xs mx-auto">
               <input
                 required
@@ -122,9 +170,8 @@ export default function MiniOyunPage() {
         )}
       </div>
 
-      {/* Haftalık liderlik tablosu */}
       <section>
-        <h2 className="font-display text-2xl mb-6">Bu Haftanın Liderlik Tablosu</h2>
+        <h2 className="font-display text-2xl mb-6">Bu Haftanın Liderlik Tablosu — {gameInfo.title}</h2>
         <div className="space-y-1">
           {leaderboard.map((row, i) => (
             <div key={i} className="glass-panel px-4 py-3 flex items-center justify-between">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
 import { hashParentPassword } from "@/lib/parent-auth";
+import { friendlyError } from "@/lib/db-errors";
 import { z } from "zod";
 
 const schema = z.object({
@@ -34,11 +35,11 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   const links = player_ids.map((player_id: string) => ({ parent_id: parent.id, player_id }));
   const { error: linkError } = await supabase.from("parent_player_links").insert(links);
-  if (linkError) return NextResponse.json({ error: linkError.message }, { status: 500 });
+  if (linkError) return NextResponse.json({ error: friendlyError(linkError) }, { status: 500 });
 
   await supabase.from("admin_audit_log").insert({
     admin_id: access.session.sub,
@@ -85,7 +86,7 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("parent_accounts").update({ is_active }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

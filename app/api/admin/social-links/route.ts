@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
 
 // site_settings tablosu hem sistemsel ayarları (bakım modu, atmosfer/hava durumu modu)
 // hem de sosyal medya linklerini barındırıyor. Bu route yalnızca social_links alanını
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
   const { data, error } = await supabase.from("site_settings").select("social_links").eq("id", 1).single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
   return NextResponse.json({ data: data?.social_links ?? {} });
 }
 
@@ -31,7 +32,7 @@ export async function PATCH(req: NextRequest) {
     .eq("id", 1)
     .select("social_links")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   await supabase.from("admin_audit_log").insert({
     admin_id: access.session.sub, action: "update", entity: "site_settings.social_links",

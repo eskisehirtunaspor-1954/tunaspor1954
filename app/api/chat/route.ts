@@ -4,6 +4,15 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Asistan emin olmadığında TAM OLARAK bu metni döndürmesi için talimatlandırılır
+// (bkz. systemPrompt madde 9) — client bu metni değil, response'taki needsHuman
+// bayrağını kullanarak "WhatsApp ile İletişime Geç" butonunu gösterir.
+// NOT: Next.js route dosyaları yalnızca izin verilen adları (GET/POST/config vb.)
+// export edebilir, bu yüzden bu sabit dışa aktarılmıyor (route dışı bir yerden
+// gerekirse lib/notifications.ts'e taşınabilir).
+const UNSURE_FALLBACK_MESSAGE =
+  "Bu konuda size kesin bilgi veremiyorum. Dilerseniz kulüp yetkilimizle WhatsApp üzerinden iletişime geçebilirsiniz.";
+
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 15;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
@@ -152,6 +161,7 @@ Görevlerin ve nasıl davranman gerektiği:
 6. Forma fiyatı, ürün fiyatları gibi bilgi tabanında (aşağıda) yer almayan KULÜBE ÖZEL konularda asla bilgi uydurma — kulübün WhatsApp hattına yönlendir.
 7. Kulüple ilgisi olmayan genel konularda (futbol dünyası, spor, eğitim, teknoloji, günlük hayat, tarih, bilim, genel kültür vb.) rahatça ve doğal şekilde sohbet edebilirsin — bunlar için araç kullanmana gerek yok, kendi genel bilgini kullan. Sadece kulüple ilgili GÜNCEL/canlı verilerde (madde 1) araç zorunlu.
 8. Emin olmadığın hiçbir konuda, özellikle kulübe özel konularda, bilgi uydurma.
+9. Eğer soruya kesin ve doğru bir cevap veremiyorsan (bilgi tabanında yok, araçlar yetersiz kaldı, konu belirsiz vb.), başka HİÇBİR ŞEY eklemeden, tam olarak ve yalnızca şu cümleyi yanıt olarak ver: "${UNSURE_FALLBACK_MESSAGE}"
 
 ${staticFactsText}
 
@@ -202,13 +212,25 @@ ${contactText}`;
 
     const reply = response.content
       .map((block: any) => (block.type === "text" ? block.text : ""))
-      .join("\n");
+      .join("\n") || UNSURE_FALLBACK_MESSAGE;
+    const needsHuman = reply.trim() === UNSURE_FALLBACK_MESSAGE;
 
-    return NextResponse.json({ reply: reply || "Bu konuda şu an net bir bilgim yok, WhatsApp üzerinden kulübe ulaşabilirsin." });
+    // Konuşma geçmişi — best-effort, session_id yoksa (eski client) atlanır.
+    const sessionId = typeof body.sessionId === "string" ? body.sessionId : null;
+    if (sessionId) {
+      const lastUserMessage = userMessages[userMessages.length - 1];
+      const service = createServiceClient();
+      await service.from("ai_chat_logs").insert([
+        { session_id: sessionId, role: "user", message: String(lastUserMessage?.content ?? "").slice(0, 2000) },
+        { session_id: sessionId, role: "assistant", message: reply.slice(0, 2000) },
+      ]).then(() => {}, () => {});
+    }
+
+    return NextResponse.json({ reply, needsHuman });
   } catch (err) {
     console.error("TUNA AI hatası:", err);
     return NextResponse.json(
-      { reply: "Şu anda yanıt veremiyorum. Lütfen WhatsApp üzerinden bize ulaşın." },
+      { reply: "Şu anda yanıt veremiyorum. Lütfen WhatsApp üzerinden bize ulaşın.", needsHuman: true },
       { status: 200 }
     );
   }

@@ -6,6 +6,7 @@ import { MessageCircle, X, Send, Sparkles } from "lucide-react";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  needsHuman?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -14,6 +15,28 @@ const QUICK_PROMPTS = [
   "Yaz futbol okulu ne zaman?",
   "İletişim bilgileriniz nedir?",
 ];
+
+const WHATSAPP_PREFILL =
+  "Merhaba, Tunaspor 1954 web sitesindeki yapay zeka asistanı soruma cevap veremedi. Konu hakkında bilgi almak istiyorum.";
+
+function whatsappHref() {
+  const number = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
+  return `https://wa.me/${number}?text=${encodeURIComponent(WHATSAPP_PREFILL)}`;
+}
+
+// Her sohbet oturumu tek bir session_id ile etiketlenir (admin panelinde
+// konuşma geçmişini gruplamak için) — sekme yenilense de aynı kalır.
+function useSessionId(): string {
+  const [sessionId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const existing = sessionStorage.getItem("tuna_ai_session_id");
+    if (existing) return existing;
+    const fresh = crypto.randomUUID();
+    sessionStorage.setItem("tuna_ai_session_id", fresh);
+    return fresh;
+  });
+  return sessionId;
+}
 
 export function AiAssistantBubble() {
   const [open, setOpen] = useState(false);
@@ -27,6 +50,7 @@ export function AiAssistantBubble() {
   ]);
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const sessionId = useSessionId();
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,14 +67,14 @@ export function AiAssistantBubble() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: next, sessionId }),
       });
       const data = await res.json();
-      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+      setMessages((m) => [...m, { role: "assistant", content: data.reply, needsHuman: Boolean(data.needsHuman) }]);
     } catch {
       setMessages((m) => [
         ...m,
-        { role: "assistant", content: "Şu anda yanıt veremiyorum, lütfen WhatsApp üzerinden bize ulaşın." },
+        { role: "assistant", content: "Şu anda yanıt veremiyorum, lütfen WhatsApp üzerinden bize ulaşın.", needsHuman: true },
       ]);
     } finally {
       setLoading(false);
@@ -71,15 +95,20 @@ export function AiAssistantBubble() {
           </div>
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2 text-sm">
             {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`max-w-[85%] px-3 py-2 rounded-xl ${
-                  m.role === "user"
-                    ? "bg-tuna-gold text-tuna-black ml-auto"
-                    : "bg-white/10"
-                }`}
-              >
-                {m.content}
+              <div key={i} className={m.role === "user" ? "ml-auto max-w-[85%]" : "max-w-[85%]"}>
+                <div className={`px-3 py-2 rounded-xl ${m.role === "user" ? "bg-tuna-gold text-tuna-black" : "bg-white/10"}`}>
+                  {m.content}
+                </div>
+                {m.needsHuman && (
+                  <a
+                    href={whatsappHref()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 rounded-full px-3 py-1.5 hover:bg-emerald-500/25 transition-colors"
+                  >
+                    💬 WhatsApp ile İletişime Geç
+                  </a>
+                )}
               </div>
             ))}
             {loading && (

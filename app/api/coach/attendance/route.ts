@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getCoachSession } from "@/lib/coach-guard";
+import { notifyParentsOfPlayer } from "@/lib/notifications";
+import { friendlyError } from "@/lib/db-errors";
 import { z } from "zod";
 
 const bodySchema = z.object({
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
   // Aksi halde bir antrenör başka bir kategorinin yoklamasını girebilirdi.
   const { data: trainingSession } = await supabase
     .from("training_sessions")
-    .select("id, team_id")
+    .select("id, team_id, session_date, start_time, teams(display_name)")
     .eq("id", session_id)
     .single();
   if (!trainingSession) return NextResponse.json({ error: "Antrenman oturumu bulunamadı." }, { status: 404 });
@@ -43,7 +45,33 @@ export async function POST(req: NextRequest) {
 
   const rows = records.map((r) => ({ session_id, player_id: r.player_id, status: r.status, note: r.note ?? null }));
   const { error } = await supabase.from("training_attendance").upsert(rows, { onConflict: "session_id,player_id" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
+
+  // Devamsızlık sayısını otomatik güncelle + katılmayan oyuncuların velisine bildirim gönder.
+  // (Hata olursa ana işlemi bozmasın diye best-effort — yoklama zaten kaydedildi.)
+  const teamName = (trainingSession as any).teams?.display_name ?? "Antrenman";
+  for (const r of records) {
+    try {
+      const { count } = await supabase
+        .from("training_attendance")
+        .select("id", { count: "exact", head: true })
+        .eq("player_id", r.player_id)
+        .eq("status", "katilmadi");
+      await supabase.from("players").update({ missed_trainings_count: count ?? 0 }).eq("id", r.player_id);
+
+      if (r.status === "katilmadi") {
+        const { data: player } = await supabase.from("players").select("full_name").eq("id", r.player_id).single();
+        await notifyParentsOfPlayer(r.player_id, "antrenman_devamsizlik", {
+          player_name: player?.full_name ?? "",
+          date: new Date(trainingSession.session_date).toLocaleDateString("tr-TR"),
+          time: trainingSession.start_time,
+          team_name: teamName,
+        });
+      }
+    } catch (e) {
+      console.error("Devamsızlık bildirimi/hesabı hatası:", e);
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

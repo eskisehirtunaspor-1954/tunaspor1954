@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAtmosphere } from "@/components/layout/AtmosphereProvider";
 
+type BusyRef = { current: "wolf" | "crowd" | null };
+
 // Kuş cıvıltısı: kısa, rastgele aralıklarla tekrar eden yüksek frekanslı "cıvıltı" sesleri.
 // Zamanlayıcı ID'si dışarıya (ref üzerinden) verilir ki cleanup anında iptal edilebilsin —
 // önceki sürümde yalnızca bir "durdu" bayrağı kontrol ediliyordu, bu da temizliği
@@ -30,14 +32,21 @@ function scheduleBirdChirps(ctx: AudioContext, master: GainNode, timeoutIdRef: {
   chirpOnce();
 }
 
-// Uzaktan gelen kurt uluması: yavaş bir glide ile yükselip alçalan, lowpass
-// filtreli tek bir osilatör — "uzaklık" hissi için düşük genlik ve hafif reverb
-// benzeri bir gecikme kullanılır. Kuş cıvıltısıyla aynı zamanlayıcı desenini
-// kullanır ama çok daha nadir (20-45sn) ve uzun (2-3sn) çalar.
-function scheduleWolfHowls(ctx: AudioContext, master: GainNode, timeoutIdRef: { current: ReturnType<typeof setTimeout> | null }) {
-  function howlOnce() {
+// Uzaktan gelen bozkurt uluması: yavaş bir glide ile yükselip alçalan, lowpass
+// filtreli bir osilatör. Spesifikasyon gereği 5-10 dakikada bir, önceki
+// sürümden belirgin şekilde daha uzun ve öne çıkan (foreground) bir olay —
+// kurt ulumasıyla taraftar tezahüratı asla aynı anda çalmasın diye `busyRef`
+// paylaşılan kilidini kontrol eder.
+function scheduleWolfHowls(ctx: AudioContext, master: GainNode, timeoutIdRef: { current: ReturnType<typeof setTimeout> | null }, busyRef: BusyRef) {
+  function attemptHowl() {
+    if (busyRef.current === "crowd") {
+      timeoutIdRef.current = setTimeout(attemptHowl, (5 + Math.random() * 10) * 1000);
+      return;
+    }
+    busyRef.current = "wolf";
+
     const now = ctx.currentTime;
-    const duration = 2.2 + Math.random() * 1.2;
+    const duration = 4 + Math.random() * 3; // 4-7sn — önceki sürümden belirgin daha uzun
 
     const osc = ctx.createOscillator();
     osc.type = "sawtooth";
@@ -48,23 +57,25 @@ function scheduleWolfHowls(ctx: AudioContext, master: GainNode, timeoutIdRef: { 
 
     const lowpass = ctx.createBiquadFilter();
     lowpass.type = "lowpass";
-    lowpass.frequency.value = 700; // uzaktan geliyormuş hissi
+    lowpass.frequency.value = 750;
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.045, now + duration * 0.25);
-    gain.gain.linearRampToValueAtTime(0.045, now + duration * 0.7);
+    gain.gain.linearRampToValueAtTime(0.11, now + duration * 0.25); // öncekinden belirgin daha yüksek
+    gain.gain.linearRampToValueAtTime(0.11, now + duration * 0.7);
     gain.gain.linearRampToValueAtTime(0, now + duration);
 
     osc.connect(lowpass).connect(gain).connect(master);
     osc.start(now);
     osc.stop(now + duration + 0.1);
 
-    const nextDelay = 20 + Math.random() * 25;
-    timeoutIdRef.current = setTimeout(howlOnce, nextDelay * 1000);
+    setTimeout(() => { if (busyRef.current === "wolf") busyRef.current = null; }, duration * 1000);
+
+    const nextDelay = 300 + Math.random() * 300; // 5-10 dakika
+    timeoutIdRef.current = setTimeout(attemptHowl, nextDelay * 1000);
   }
   // İlk uluma hemen değil, sayfa açılışından biraz sonra gelsin (daha doğal).
-  timeoutIdRef.current = setTimeout(howlOnce, (6 + Math.random() * 10) * 1000);
+  timeoutIdRef.current = setTimeout(attemptHowl, (6 + Math.random() * 10) * 1000);
 }
 
 // Hafif rüzgar: düşük geçiren filtreli beyaz gürültü + çok yavaş bir LFO ile
@@ -108,8 +119,12 @@ function createWindLayer(ctx: AudioContext): { gain: GainNode; stop: () => void 
 }
 
 // Stadyum taraftar tezahüratı: filtrelenmiş, ritmik genlik modülasyonlu beyaz
-// gürültü — uzaktan gelen bir kalabalık uğultusu hissi verir. Gece döngüsünde
-// kurt ulumasıyla nöbetleşe, yumuşak geçişlerle (fade in/out) devreye girer.
+// gürültü — uzaktan gelen bir kalabalık uğultusu hissi verir. LFO periyodu
+// (~3sn) "Tu-na-spor" gibi 3 heceli bir tezahürat kadansını çağrıştıracak
+// şekilde ayarlandı. DÜRÜSTLÜK NOTU: Web Audio API ile gerçekten "Tunaspor"
+// kelimesini telaffuz eden bir ses üretmek mümkün değil (bu, kayıtlı ses veya
+// text-to-speech gerektirir) — burada yalnızca ritmik bir kalabalık hissi var,
+// kelimenin kendisi duyulmaz.
 function createCrowdAmbience(ctx: AudioContext): { gain: GainNode; stop: () => void } {
   const bufferSize = 4 * ctx.sampleRate;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -126,7 +141,7 @@ function createCrowdAmbience(ctx: AudioContext): { gain: GainNode; stop: () => v
   bandpass.Q.value = 0.5;
 
   const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.3; // yavaş "dalga dalga" tezahürat hissi
+  lfo.frequency.value = 0.33; // ~3sn periyot — "Tu-na-spor" kadansına yakın ritim
   const lfoGain = ctx.createGain();
   lfoGain.gain.value = 0.03;
 
@@ -144,41 +159,56 @@ function createCrowdAmbience(ctx: AudioContext): { gain: GainNode; stop: () => v
   };
 }
 
-// Gece döngüsü: kurt ulumaları + rüzgar önce duyulur; ~10-15sn sonra bunlar
-// azalırken taraftar tezahüratı yumuşakça devreye girer, bir süre çalıp yine
-// yumuşakça söner ve döngü tekrarlanır — "sürekli değişen" bir gece atmosferi.
-// LFO'nun kalabalık sesine eklediği modülasyonun üstüne biniyor, o yüzden
-// hedef genlik LFO'nun tepe noktasını aşmayacak şekilde ölçülü tutuluyor.
-function scheduleCrowdSwell(ctx: AudioContext, gainParam: AudioParam, timeoutIdRef: { current: ReturnType<typeof setTimeout> | null }) {
-  function cycle() {
+function isPastCrowdGate(): boolean {
+  const now = new Date();
+  return now.getHours() > 20 || (now.getHours() === 20 && now.getMinutes() >= 30);
+}
+
+// Taraftar tezahüratı yalnızca saat 20:30'dan SONRA devreye girer (gece modu
+// kendisi 20:00'da başlasa da). Aralık 10-20 dakika, her tezahürat toplam
+// 10-20sn sürüp doğal fade-out ile söner. Kurt ulumasıyla çakışmayı önlemek
+// için `busyRef` paylaşılan kilidini kontrol eder.
+function scheduleCrowdSwell(ctx: AudioContext, gainParam: AudioParam, timeoutIdRef: { current: ReturnType<typeof setTimeout> | null }, busyRef: BusyRef) {
+  function attemptCycle() {
+    if (!isPastCrowdGate()) {
+      timeoutIdRef.current = setTimeout(attemptCycle, 60_000); // saat 20:30'u her dakika kontrol et
+      return;
+    }
+    if (busyRef.current === "wolf") {
+      timeoutIdRef.current = setTimeout(attemptCycle, (5 + Math.random() * 10) * 1000);
+      return;
+    }
+    busyRef.current = "crowd";
+
     const now = ctx.currentTime;
-    const fadeIn = 3;
-    const hold = 14 + Math.random() * 6;
-    const fadeOut = 3;
-    const silence = 12 + Math.random() * 10;
+    const fadeIn = 2;
+    const fadeOut = 2;
+    const totalDuration = 10 + Math.random() * 10; // toplam 10-20sn
+    const hold = Math.max(0, totalDuration - fadeIn - fadeOut);
 
     gainParam.cancelScheduledValues(now);
     gainParam.setValueAtTime(0, now);
-    gainParam.linearRampToValueAtTime(0.045, now + fadeIn);
-    gainParam.setValueAtTime(0.045, now + fadeIn + hold);
+    gainParam.linearRampToValueAtTime(0.05, now + fadeIn);
+    gainParam.setValueAtTime(0.05, now + fadeIn + hold);
     gainParam.linearRampToValueAtTime(0, now + fadeIn + hold + fadeOut);
 
-    const total = fadeIn + hold + fadeOut + silence;
-    timeoutIdRef.current = setTimeout(cycle, total * 1000);
+    setTimeout(() => { if (busyRef.current === "crowd") busyRef.current = null; }, totalDuration * 1000);
+
+    const silenceMinutes = 10 + Math.random() * 10; // 10-20 dakika
+    timeoutIdRef.current = setTimeout(attemptCycle, (totalDuration + silenceMinutes * 60) * 1000);
   }
-  // İlk tezahürat dalgası spesifikasyona uygun olarak 10-15sn sonra başlar —
-  // o ana kadar yalnızca kurt uluması + rüzgar duyulur.
-  timeoutIdRef.current = setTimeout(cycle, (10 + Math.random() * 5) * 1000);
+  timeoutIdRef.current = setTimeout(attemptCycle, 5000);
 }
 
 export function AmbientSoundscape() {
-  const { atmosphere, soundEnabled } = useAtmosphere();
+  const { atmosphere, soundEnabled, volume } = useAtmosphere();
   const [isClearWeather, setIsClearWeather] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const chirpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const howlTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swellTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const masterRef = useRef<GainNode | null>(null);
 
   // Hava açık/güneşliyken (gündüz saatlerinde) de kuş cıvıltısı duyulsun istendi —
   // sadece "sabah" atmosferiyle sınırlı kalmasın.
@@ -203,8 +233,12 @@ export function AmbientSoundscape() {
     const ctx = new AudioCtx();
     ctxRef.current = ctx;
     const master = ctx.createGain();
-    master.gain.value = 1;
+    master.gain.value = volume;
+    masterRef.current = master;
     master.connect(ctx.destination);
+
+    // Kurt uluması + taraftar tezahüratının aynı anda çalmaması için paylaşılan kilit.
+    const busyRef: BusyRef = { current: null };
 
     // Rüzgar her zaman (gündüz + gece) çok kısık bir taban katman olarak çalar.
     const wind = createWindLayer(ctx);
@@ -215,20 +249,25 @@ export function AmbientSoundscape() {
       scheduleBirdChirps(ctx, master, chirpTimeoutRef);
       stopFns.push(() => { if (chirpTimeoutRef.current) clearTimeout(chirpTimeoutRef.current); });
     } else if (atmosphere === "gece") {
-      // Önce kurt uluması + rüzgar; 10-15sn sonra tezahürat yumuşakça devreye
-      // girip söner, döngü tekrarlanır (bkz. scheduleCrowdSwell).
-      scheduleWolfHowls(ctx, master, howlTimeoutRef);
+      scheduleWolfHowls(ctx, master, howlTimeoutRef, busyRef);
       stopFns.push(() => { if (howlTimeoutRef.current) clearTimeout(howlTimeoutRef.current); });
 
       const crowd = createCrowdAmbience(ctx);
       crowd.gain.connect(master);
-      scheduleCrowdSwell(ctx, crowd.gain.gain, swellTimeoutRef);
+      scheduleCrowdSwell(ctx, crowd.gain.gain, swellTimeoutRef, busyRef);
       stopFns.push(crowd.stop, () => { if (swellTimeoutRef.current) clearTimeout(swellTimeoutRef.current); });
     }
 
     cleanupRef.current = () => { stopFns.forEach((fn) => fn()); ctx.close(); };
     return () => { cleanupRef.current?.(); cleanupRef.current = null; };
   }, [soundEnabled, atmosphere, birdsShouldChirp]);
+
+  // Ses seviyesi kaydırıcısı anlık olarak (yeniden bağlanmadan) uygulanır.
+  useEffect(() => {
+    if (masterRef.current && ctxRef.current) {
+      masterRef.current.gain.setTargetAtTime(volume, ctxRef.current.currentTime, 0.05);
+    }
+  }, [volume]);
 
   return null;
 }

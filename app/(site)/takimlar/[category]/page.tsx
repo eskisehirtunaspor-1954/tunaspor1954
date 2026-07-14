@@ -40,7 +40,15 @@ export default async function TeamDetailPage({ params }: Props) {
     { data: standings },
     { data: fixtures },
   ] = await Promise.all([
-    supabase.from("players").select("*").eq("team_id", team.id).eq("is_published", true).order("jersey_number"),
+    // GÜVENLİK: select("*") kullanılmıyor — players tablosuna eklenen veli
+    // iletişim bilgisi, devamsızlık sayısı ve aidat verisi (admin-only alanlar)
+    // herkese açık bu sayfanın RSC payload'ına asla dahil edilmemeli.
+    supabase
+      .from("players")
+      .select("id, full_name, position, jersey_number, birth_date, height_cm, weight_kg, photo_url, license_no, preferred_foot, joined_at, team_id")
+      .eq("team_id", team.id)
+      .eq("is_published", true)
+      .order("jersey_number"),
     supabase.from("staff_members").select("*").eq("team_id", team.id).eq("is_published", true),
     supabase.from("news").select("id, slug, title").eq("team_id", team.id).eq("is_published", true).limit(5),
     supabase.from("gallery_albums").select("*").eq("team_id", team.id).eq("is_published", true),

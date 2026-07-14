@@ -4,6 +4,7 @@ import { requireModuleAccess } from "@/lib/admin-guard";
 import { hashPassword, generateTotpSecret, totpKeyUri } from "@/lib/auth";
 import { z } from "zod";
 import QRCode from "qrcode";
+import { friendlyError } from "@/lib/db-errors";
 
 // GÜVENLİK YAMASI: Minimum şifre gücü zorunluluğu eklendi (önceden hiç kontrol yoktu).
 const bodySchema = z.object({
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
 
   const uri = totpKeyUri(email, totp_secret);
   const qrCodeDataUrl = await QRCode.toDataURL(uri);
