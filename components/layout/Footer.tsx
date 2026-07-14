@@ -32,23 +32,16 @@ interface ContactInfo {
   saha_map_lng?: number | null;
 }
 
-function directionsUrl(query: string) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`;
-}
-
-function openInMapsUrl(query: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
-function LocationCard({ name, address, lat, lng }: { name: string; address?: string | null; lat?: number | null; lng?: number | null }) {
+function LocationCard({
+  name, address, lat, lng, variant,
+}: { name: string; address?: string | null; lat?: number | null; lng?: number | null; variant: "club" | "pitch" }) {
   const hasCoords = Boolean(lat && lng);
-  const query = hasCoords ? `${lat},${lng}` : address || "";
 
   return (
     <div className="glass-panel overflow-hidden">
       <div className="aspect-video w-full">
         {hasCoords ? (
-          <ClubMap lat={Number(lat)} lng={Number(lng)} label={name} />
+          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} variant={variant} />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-white/5 text-center text-sm text-tuna-mist px-4">
             Konum yakında eklenecek
@@ -57,27 +50,7 @@ function LocationCard({ name, address, lat, lng }: { name: string; address?: str
       </div>
       <div className="p-4">
         <h4 className="font-semibold text-sm mb-1">{name}</h4>
-        {address && <p className="text-xs text-tuna-mist mb-3">{address}</p>}
-        {hasCoords && (
-          <div className="flex flex-wrap gap-2">
-            <a
-              href={directionsUrl(query)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs border border-tuna-gold/40 text-tuna-gold px-3 py-1.5 rounded-full hover:bg-tuna-gold/10 hover:border-tuna-gold transition-colors"
-            >
-              🧭 Yol Tarifi Al
-            </a>
-            <a
-              href={openInMapsUrl(query)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs border border-white/15 text-tuna-mist px-3 py-1.5 rounded-full hover:border-white/30 hover:text-white transition-colors"
-            >
-              Google Maps'te Aç
-            </a>
-          </div>
-        )}
+        {address && <p className="text-xs text-tuna-mist">{address}</p>}
       </div>
     </div>
   );
@@ -102,12 +75,14 @@ export function Footer({ contactInfo }: { contactInfo?: ContactInfo }) {
             address={contactInfo?.address}
             lat={contactInfo?.map_lat}
             lng={contactInfo?.map_lng}
+            variant="club"
           />
           <LocationCard
             name={contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası"}
             address={contactInfo?.saha_address}
             lat={contactInfo?.saha_map_lat}
             lng={contactInfo?.saha_map_lng}
+            variant="pitch"
           />
         </div>
       </div>

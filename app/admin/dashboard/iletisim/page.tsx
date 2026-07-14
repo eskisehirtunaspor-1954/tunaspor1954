@@ -39,7 +39,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 // dahil) belirir. Hiçbir zaman ham enlem/boylam, URL ya da iframe kodu
 // istenmez/gösterilmez.
 function LocationEditor({
-  title, name, address, lat, lng, onNameChange, onAddressChange, error,
+  title, name, address, lat, lng, onNameChange, onAddressChange, error, variant,
 }: {
   title: string;
   name: string;
@@ -49,6 +49,7 @@ function LocationEditor({
   onNameChange: (v: string) => void;
   onAddressChange: (v: string) => void;
   error?: string | null;
+  variant: "club" | "pitch";
 }) {
   const hasCoords = Boolean(lat && lng);
   return (
@@ -71,7 +72,7 @@ function LocationEditor({
       {error && <p className="text-xs text-red-400">{error}</p>}
       {hasCoords && (
         <div className="aspect-video w-full max-w-md overflow-hidden rounded-xl border border-white/10">
-          <ClubMap lat={Number(lat)} lng={Number(lng)} label={name} />
+          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} variant={variant} />
         </div>
       )}
     </div>
@@ -158,6 +159,7 @@ export default function Page() {
           onNameChange={(v) => setInfo({ ...info, location_name: v })}
           onAddressChange={(v) => setInfo({ ...info, address: v })}
           error={clubError}
+          variant="club"
         />
 
         <LocationEditor
@@ -169,6 +171,7 @@ export default function Page() {
           onNameChange={(v) => setInfo({ ...info, saha_name: v })}
           onAddressChange={(v) => setInfo({ ...info, saha_address: v })}
           error={sahaError}
+          variant="pitch"
         />
 
         <button disabled={saving} className="md:col-span-2 bg-tuna-yellow text-tuna-black font-semibold py-2 rounded-lg disabled:opacity-50 mt-3">

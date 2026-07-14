@@ -60,7 +60,13 @@ export default async function IletisimPage() {
         </div>
         {hasCoords && (
           <div className="mt-8 aspect-video w-full overflow-hidden rounded-2xl">
-            <ClubMap lat={Number(info.map_lat)} lng={Number(info.map_lng)} label="Tunaspor 1954" />
+            <ClubMap
+              lat={Number(info.map_lat)}
+              lng={Number(info.map_lng)}
+              name={info?.location_name || "Tunaspor 1954 Kulüp Binası"}
+              address={info?.address}
+              variant="club"
+            />
           </div>
         )}
       </div>

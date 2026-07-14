@@ -38,7 +38,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: `
               default-src 'self';
-              img-src 'self' https://*.supabase.co https://*.tile.openstreetmap.org data: blob:;
+              img-src 'self' https://*.supabase.co https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com data: blob:;
               script-src 'self' 'unsafe-inline' 'unsafe-eval';
               style-src 'self' 'unsafe-inline';
               connect-src 'self' https://*.supabase.co https://api.anthropic.com ws: wss:;
