@@ -12,6 +12,23 @@ const ClubMap = dynamic(() => import("@/components/site/ClubMap").then((m) => m.
   ),
 });
 
+// Veritabanı boş/eksik olsa bile harita ASLA "Konum yakında eklenecek" gibi bir
+// yer tutucu göstermemeli — bu yüzden her iki konum için de sabit, doğrulanmış
+// varsayılan koordinatlar tanımlı. DB'deki değerler her zaman önceliklidir;
+// bunlar yalnızca map_lat/map_lng null olduğunda devreye girer.
+const CLUB_FALLBACK = {
+  lat: 39.793,
+  lng: 30.5288,
+  name: "Tunaspor 1954 Kulüp Merkezi",
+  address: "Zafer Mahallesi, Egeli Sokak, Tepebaşı / Eskişehir",
+};
+const SAHA_FALLBACK = {
+  lat: 39.7915,
+  lng: 30.4908,
+  name: "Ediz Bahtiyaroğlu Sahası",
+  address: "Fevziçakmak Mahallesi, Kanallar Sokak No:31, 26230 Tepebaşı / Eskişehir",
+};
+
 interface ContactInfo {
   location_name?: string | null;
   address?: string | null;
@@ -34,20 +51,12 @@ function LocationCard({
   name, address, description, lat, lng, phone, variant,
 }: {
   name: string; address?: string | null; description?: string | null;
-  lat?: number | null; lng?: number | null; phone?: string | null; variant: MapMarkerIcon;
+  lat: number; lng: number; phone?: string | null; variant: MapMarkerIcon;
 }) {
-  const hasCoords = Boolean(lat && lng);
-
   return (
     <div className="glass-panel overflow-hidden">
       <div className="aspect-video w-full">
-        {hasCoords ? (
-          <ClubMap lat={Number(lat)} lng={Number(lng)} name={name} address={address} description={description} phone={phone} variant={variant} />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-white/5 text-center text-sm text-tuna-mist px-4">
-            Konum yakında eklenecek
-          </div>
-        )}
+        <ClubMap lat={lat} lng={lng} name={name} address={address} description={description} phone={phone} variant={variant} />
       </div>
       <div className="p-4">
         <h4 className="font-semibold text-sm mb-1">{name}</h4>
@@ -74,22 +83,22 @@ export function LocationsSection({ contactInfo }: { contactInfo?: ContactInfo })
       <div className="grid gap-6 md:grid-cols-2">
         {clubActive && (
           <LocationCard
-            name={contactInfo?.location_name || "Tunaspor 1954 Kulüp Merkezi"}
-            address={contactInfo?.address}
+            name={contactInfo?.location_name || CLUB_FALLBACK.name}
+            address={contactInfo?.address || CLUB_FALLBACK.address}
             description={contactInfo?.map_description}
-            lat={contactInfo?.map_lat}
-            lng={contactInfo?.map_lng}
+            lat={Number.isFinite(contactInfo?.map_lat) ? Number(contactInfo!.map_lat) : CLUB_FALLBACK.lat}
+            lng={Number.isFinite(contactInfo?.map_lng) ? Number(contactInfo!.map_lng) : CLUB_FALLBACK.lng}
             phone={contactInfo?.phone}
             variant={contactInfo?.map_marker_icon || "club_logo"}
           />
         )}
         {sahaActive && (
           <LocationCard
-            name={contactInfo?.saha_name || "Ediz Bahtiyaroğlu Sahası"}
-            address={contactInfo?.saha_address}
+            name={contactInfo?.saha_name || SAHA_FALLBACK.name}
+            address={contactInfo?.saha_address || SAHA_FALLBACK.address}
             description={contactInfo?.saha_map_description}
-            lat={contactInfo?.saha_map_lat}
-            lng={contactInfo?.saha_map_lng}
+            lat={Number.isFinite(contactInfo?.saha_map_lat) ? Number(contactInfo!.saha_map_lat) : SAHA_FALLBACK.lat}
+            lng={Number.isFinite(contactInfo?.saha_map_lng) ? Number(contactInfo!.saha_map_lng) : SAHA_FALLBACK.lng}
             phone={contactInfo?.phone}
             variant={contactInfo?.saha_map_marker_icon || "football"}
           />

@@ -17,10 +17,11 @@ export default async function IletisimPage() {
 
   const whatsappNumber = info?.whatsapp_number || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
-  // Harita hedefi: koordinat girilmişse en hassas sonucu verir, yoksa adres
-  // metniyle arama yapılır.
-  const hasCoords = Boolean(info?.map_lat && info?.map_lng);
-  const mapQuery = hasCoords ? `${info.map_lat},${info.map_lng}` : info?.address;
+  // Harita ASLA yer tutucu göstermemeli — DB'de koordinat yoksa doğrulanmış
+  // sabit varsayılana düşülür (bkz. components/home/LocationsSection.tsx).
+  const mapLat = Number.isFinite(info?.map_lat) ? Number(info.map_lat) : 39.793;
+  const mapLng = Number.isFinite(info?.map_lng) ? Number(info.map_lng) : 30.5288;
+  const mapQuery = `${mapLat},${mapLng}`;
   // Bu standart Google Maps URL şeması mobil cihazlarda otomatik olarak Google Maps
   // uygulamasına yönlenir (iOS/Android universal link) — ayrı user-agent algılaması gerekmez.
   const directionsHref = mapQuery ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapQuery)}` : null;
@@ -58,19 +59,17 @@ export default async function IletisimPage() {
             </a>
           )}
         </div>
-        {hasCoords && (
-          <div className="mt-8 aspect-video w-full overflow-hidden rounded-2xl">
-            <ClubMap
-              lat={Number(info.map_lat)}
-              lng={Number(info.map_lng)}
-              name={info?.location_name || "Tunaspor 1954 Kulüp Merkezi"}
-              address={info?.address}
-              description={info?.map_description}
-              phone={info?.phone}
-              variant={info?.map_marker_icon || "club_logo"}
-            />
-          </div>
-        )}
+        <div className="mt-8 aspect-video w-full overflow-hidden rounded-2xl">
+          <ClubMap
+            lat={mapLat}
+            lng={mapLng}
+            name={info?.location_name || "Tunaspor 1954 Kulüp Merkezi"}
+            address={info?.address || "Zafer Mahallesi, Egeli Sokak, Tepebaşı / Eskişehir"}
+            description={info?.map_description}
+            phone={info?.phone}
+            variant={info?.map_marker_icon || "club_logo"}
+          />
+        </div>
       </div>
       <ContactForm />
     </div>

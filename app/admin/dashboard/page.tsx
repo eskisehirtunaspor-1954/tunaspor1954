@@ -20,7 +20,7 @@ const MODULES = [
   { href: "/admin/dashboard/sosyal-akis", label: "Sosyal Medya Akışı (Instagram Tarzı)" },
   { href: "/admin/dashboard/seo", label: "SEO Paneli" },
   { href: "/admin/dashboard/performans", label: "Performans Paneli" },
-  { href: "/admin/dashboard/asistan", label: "Yapay Zekâ Asistanı" },
+  { href: "/admin/dashboard/asistan", label: "🐺 Golden Wolf Yönetimi" },
   { href: "/admin/dashboard/bildirimler", label: "Push Bildirim Gönder" },
   { href: "/admin/dashboard/dil", label: "Çoklu Dil Yönetimi" },
   { href: "/admin/dashboard/ayarlar", label: "Site Ayarları" },

@@ -12,8 +12,8 @@ const WeatherEffects = dynamic(
   () => import("@/components/home/WeatherEffects").then((m) => m.WeatherEffects),
   { ssr: false }
 );
-const AiAssistantBubble = dynamic(
-  () => import("@/components/home/AiAssistantBubble").then((m) => m.AiAssistantBubble),
+const GoldenWolfBubble = dynamic(
+  () => import("@/components/home/GoldenWolfBubble").then((m) => m.GoldenWolfBubble),
   { ssr: false }
 );
 // Atmosfer sesi (rüzgar/kuş/kurt uluması/taraftar) site genelinde çalar — ses
@@ -29,7 +29,7 @@ export function DeferredEffects() {
     <>
       <WeatherEffects />
       <AmbientSoundscape />
-      <AiAssistantBubble />
+      <GoldenWolfBubble />
     </>
   );
 }

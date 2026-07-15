@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireModuleAccess } from "@/lib/admin-guard";
+import { friendlyError } from "@/lib/db-errors";
+
+// ai_settings tekil (id=1) bir kayıttır — Golden Wolf'un karşılama mesajı,
+// ek sistem talimatı ve yasaklı konular listesi burada tutulur.
+export async function GET(req: NextRequest) {
+  const access = await requireModuleAccess(req, "ai_knowledge_base");
+  if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.from("ai_settings").select("*").eq("id", 1).single();
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
+  return NextResponse.json({ data });
+}
+
+export async function PATCH(req: NextRequest) {
+  const access = await requireModuleAccess(req, "ai_knowledge_base");
+  if ("error" in access) return NextResponse.json({ error: access.error }, { status: access.status });
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.from("ai_settings").update(body).eq("id", 1).select().single();
+  if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
+  return NextResponse.json({ data });
+}

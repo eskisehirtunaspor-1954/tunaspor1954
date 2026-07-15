@@ -23,9 +23,11 @@ const KIND_RULES: Record<Kind, { test: (mime: string) => boolean; maxSize: numbe
     test: (m) =>
       m === "application/pdf" ||
       m === "application/msword" ||
-      m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      m === "application/vnd.ms-excel" ||
+      m === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     maxSize: 20 * 1024 * 1024, // 20MB
-    error: "Yalnızca PDF veya Word (.doc/.docx) belgesi yüklenebilir (en fazla 20MB).",
+    error: "Yalnızca PDF, Word (.doc/.docx) veya Excel (.xls/.xlsx) belgesi yüklenebilir (en fazla 20MB).",
   },
 };
 
