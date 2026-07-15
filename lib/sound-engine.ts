@@ -67,6 +67,7 @@ interface Entry {
   audio: HTMLAudioElement;
   broken: boolean;
   playingOneShot: boolean;
+  pendingOneShot: boolean;
   baseLevel: number;
 }
 
@@ -75,6 +76,7 @@ interface Override {
   volume: number;
   loop: boolean;
   active: boolean;
+  autoplay: boolean;
 }
 
 class SoundEngine {
@@ -86,11 +88,52 @@ class SoundEngine {
   private categoryEnabled: Record<SoundCategory, boolean> = { atmosfer: true, tribun: true, kurt: true, efekt: true };
   private fadeHandles = new Map<SoundKey, number>();
 
-  // Admin panelinden yüklenen özel dosya/varsayılan ses seviyesi/loop
-  // ayarlarını uygular — kod değiştirmeden ses sistemi yönetilebilsin diye.
-  setOverrides(list: { key: SoundKey; file_url: string; volume: number; loop: boolean; is_active: boolean }[]) {
+  constructor() {
+    // Tarayıcı otomatik oynatmayı engellediyse (NotAllowedError), kullanıcının
+    // sayfadaki İLK dokunuşunda/tıklamasında/tuşuna basmasında tüm bekleyen
+    // sesleri tekrar başlatmayı dener — bu olmadan `fadeTo`/`playOneShot`
+    // tarafından reddedilen bir oynatma isteği bir daha asla denenmezdi.
+    if (typeof window !== "undefined") {
+      const retry = () => this.retryBlocked();
+      ["pointerdown", "touchstart", "keydown"].forEach((evt) =>
+        window.addEventListener(evt, retry, { once: true, passive: true })
+      );
+    }
+  }
+
+  // Admin panelinden yüklenen özel dosya/varsayılan ses seviyesi/loop/otomatik
+  // başlatma ayarlarını uygular — kod değiştirmeden ses sistemi yönetilebilsin diye.
+  setOverrides(list: { key: SoundKey; file_url: string | null; volume: number; loop: boolean; is_active: boolean; autoplay?: boolean }[]) {
     this.overrides.clear();
-    list.forEach((o) => this.overrides.set(o.key, { url: o.file_url, volume: o.volume, loop: o.loop, active: o.is_active }));
+    list.forEach((o) => this.overrides.set(o.key, { url: o.file_url ?? "", volume: o.volume, loop: o.loop, active: o.is_active, autoplay: o.autoplay ?? false }));
+  }
+
+  // Bir sesin "Otomatik Başlat" ayarı açık mı? Admin override yoksa (henüz
+  // ayarlar yüklenmediyse) çağıranın belirttiği varsayılana düşer.
+  autoplayEnabled(key: SoundKey, defaultValue = true): boolean {
+    const override = this.overrides.get(key);
+    return override ? override.autoplay : defaultValue;
+  }
+
+  // Otomatik oynatma engeli kalktıktan (ilk kullanıcı etkileşimi) sonra, o an
+  // seviyesi 0'ın üzerinde olması gerektiği halde duraklamış kalan tüm sesleri
+  // yeniden çalmayı dener.
+  retryBlocked() {
+    this.entries.forEach((entry, key) => {
+      if (entry.broken) return;
+      if (entry.pendingOneShot) {
+        // Engellenmiş tek seferlik ses (ör. açılış kurt uluması) — "ended" olayı
+        // zaten dinleniyor, burada yalnızca gerçek çalmayı tekrar deneriz;
+        // onComplete callback'i asla erken değil, gerçek bitişte tetiklenir.
+        entry.pendingOneShot = false;
+        entry.audio.play().catch(() => { entry.pendingOneShot = true; });
+        return;
+      }
+      const target = this.targetVolume(key, entry.baseLevel);
+      if (target > 0 && entry.audio.paused) {
+        entry.audio.play().catch(() => {});
+      }
+    });
   }
 
   setMasterEnabled(v: boolean) {
@@ -127,7 +170,7 @@ class SoundEngine {
       audio.preload = "auto";
       audio.loop = override ? override.loop : LOOP_KEYS.has(key);
       audio.volume = 0;
-      const newEntry: Entry = { audio, broken: false, playingOneShot: false, baseLevel: 0 };
+      const newEntry: Entry = { audio, broken: false, playingOneShot: false, pendingOneShot: false, baseLevel: 0 };
       // Dosya eksik/bozuksa sessizce yut — uygulama asla bu yüzden hata vermemeli.
       audio.addEventListener("error", () => { newEntry.broken = true; });
       entry = newEntry;
@@ -202,11 +245,18 @@ class SoundEngine {
     }
     entry.audio.volume = this.targetVolume(key, baseLevel);
     entry.playingOneShot = true;
-    // play() reddi burada da `broken` işaretlemez (bkz. fadeTo) — yalnızca
-    // "playingOneShot" bayrağı geri alınır ki bir sonraki tetiklemede tekrar denensin.
-    entry.audio.play().catch(() => { entry.playingOneShot = false; onComplete?.(); });
-    const onEnd = () => { entry.playingOneShot = false; entry.audio.removeEventListener("ended", onEnd); onComplete?.(); };
+    const onEnd = () => {
+      entry.playingOneShot = false;
+      entry.pendingOneShot = false;
+      entry.audio.removeEventListener("ended", onEnd);
+      onComplete?.();
+    };
     entry.audio.addEventListener("ended", onEnd);
+    // play() reddi burada `broken` işaretlemez ve onComplete'i ERKEN tetiklemez
+    // (bkz. fadeTo) — yalnızca "pendingOneShot" işaretlenir ki ilk kullanıcı
+    // etkileşiminde retryBlocked() gerçekten çalıştırsın; onComplete yalnızca
+    // gerçek "ended" olayında çağrılır.
+    entry.audio.play().catch(() => { entry.pendingOneShot = true; });
   }
 
   private rescaleActive() {
