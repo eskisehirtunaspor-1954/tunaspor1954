@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Volume2, VolumeX } from "lucide-react";
 import { getSoundEngine, type SoundCategory } from "@/lib/sound-engine";
 
@@ -113,7 +114,12 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   const hasInteracted = useHasInteracted();
 
   useEffect(() => {
-    setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") === "on");
+    // Varsayılan olarak ses AÇIK kabul edilir ("site açılır açılmaz otomatik
+    // başlasın") — kullanıcı daha önce açıkça kapatmadıysa (localStorage'da
+    // "off" yoksa) sesi otomatik denenir. Tarayıcı otomatik oynatmayı
+    // engellerse (neredeyse her zaman engeller) ilk kullanıcı etkileşiminde
+    // (useHasInteracted) devreye girer — bkz. effectiveSoundEnabled.
+    setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") !== "off");
     const savedVolume = localStorage.getItem("tuna_atmosphere_volume");
     if (savedVolume) setVolumeState(parseFloat(savedVolume));
 
@@ -211,55 +217,109 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
     [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled, volume, categoryVolumes, categoryEnabled]
   );
 
-  const [volumePanelOpen, setVolumePanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Panel yalnızca hoparlör ikonuna tıklanınca açılır/kapanır (artık hover
+  // değil). Boş bir yere tıklamak veya ESC panel kapatır; panel/slider'ların
+  // kendi üzerine tıklamak kapatmaz (ref.contains kontrolü sayesinde).
+  useEffect(() => {
+    if (!panelOpen) return;
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      const target = e.target as Node;
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      setPanelOpen(false);
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setPanelOpen(false);
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown, { passive: true });
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [panelOpen]);
 
   return (
     <AtmosphereContext.Provider value={value}>
       <div data-atmosphere={atmosphere} className="transition-colors duration-[2500ms]">
         {children}
       </div>
-      <div
-        className="fixed bottom-24 right-5 z-40 flex items-center gap-2"
-        onMouseEnter={() => setVolumePanelOpen(true)}
-        onMouseLeave={() => setVolumePanelOpen(false)}
-      >
-        {volumePanelOpen && (
-          <div className="glass-panel px-4 py-3 flex flex-col gap-2 w-56">
-            <label className="flex items-center gap-2 text-xs text-tuna-mist">
-              <span className="w-16 shrink-0">Ana Ses</span>
-              <input
-                type="range" min={0} max={1} step={0.05}
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                aria-label="Ana ses seviyesi"
-                className="flex-1 accent-tuna-gold"
-              />
-            </label>
-            {(Object.keys(CATEGORY_LABEL) as SoundCategory[]).map((cat) => (
-              <label key={cat} className="flex items-center gap-2 text-xs text-tuna-mist">
+
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            key="sound-panel-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setPanelOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="fixed bottom-24 right-5 z-40 flex items-center gap-2">
+        <AnimatePresence>
+          {panelOpen && (
+            <motion.div
+              ref={panelRef}
+              key="sound-panel"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="glass-panel px-4 py-3 flex flex-col gap-2 w-56 max-w-[90vw] origin-bottom-right"
+            >
+              <label className="flex items-center gap-2 text-xs text-tuna-mist">
                 <button
                   type="button"
-                  onClick={() => toggleCategory(cat)}
-                  className={`w-16 shrink-0 text-left ${categoryEnabled[cat] ? "text-tuna-gold" : "text-tuna-mist/50 line-through"}`}
+                  onClick={toggleSound}
+                  className={`w-16 shrink-0 text-left ${soundEnabled ? "text-tuna-gold" : "text-tuna-mist/50 line-through"}`}
                 >
-                  {CATEGORY_LABEL[cat]}
+                  Tüm Sesler
                 </button>
                 <input
                   type="range" min={0} max={1} step={0.05}
-                  value={categoryVolumes[cat]}
-                  onChange={(e) => setCategoryVolume(cat, parseFloat(e.target.value))}
-                  disabled={!categoryEnabled[cat]}
-                  aria-label={`${CATEGORY_LABEL[cat]} ses seviyesi`}
-                  className="flex-1 accent-tuna-gold disabled:opacity-40"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  aria-label="Ana ses seviyesi"
+                  className="flex-1 accent-tuna-gold"
                 />
               </label>
-            ))}
-          </div>
-        )}
+              {(Object.keys(CATEGORY_LABEL) as SoundCategory[]).map((cat) => (
+                <label key={cat} className="flex items-center gap-2 text-xs text-tuna-mist">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(cat)}
+                    className={`w-16 shrink-0 text-left ${categoryEnabled[cat] ? "text-tuna-gold" : "text-tuna-mist/50 line-through"}`}
+                  >
+                    {CATEGORY_LABEL[cat]}
+                  </button>
+                  <input
+                    type="range" min={0} max={1} step={0.05}
+                    value={categoryVolumes[cat]}
+                    onChange={(e) => setCategoryVolume(cat, parseFloat(e.target.value))}
+                    disabled={!categoryEnabled[cat]}
+                    aria-label={`${CATEGORY_LABEL[cat]} ses seviyesi`}
+                    className="flex-1 accent-tuna-gold disabled:opacity-40"
+                  />
+                </label>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <button
-          onClick={toggleSound}
-          aria-label={soundEnabled ? "Atmosfer sesini kapat" : "Atmosfer sesini aç"}
-          title="Atmosfer Sesi"
+          ref={buttonRef}
+          onClick={() => setPanelOpen((v) => !v)}
+          aria-label={panelOpen ? "Ses panelini kapat" : "Ses panelini aç"}
+          aria-expanded={panelOpen}
+          title="Ses Ayarları"
           className="glass-panel p-3 text-tuna-gold hover:scale-105 transition-transform"
         >
           {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}

@@ -156,7 +156,13 @@ class SoundEngine {
 
     const target = this.targetVolume(key, baseLevel);
     if (target > 0 && entry.audio.paused) {
-      entry.audio.play().catch(() => { entry.broken = true; });
+      // NOT: play() reddi (ör. tarayıcının otomatik oynatma politikası
+      // "NotAllowedError") burada `broken` işaretlemez — dosya bozuk değil,
+      // yalnızca henüz kullanıcı etkileşimi olmadı. `broken`, yalnızca
+      // gerçek bir yükleme hatasında (aşağıdaki "error" olayı) ayarlanır.
+      // Kullanıcı ilk etkileşiminden sonra soundEnabled değişip bu fonksiyon
+      // yeniden çağrılınca oynatma otomatik olarak tekrar denenir.
+      entry.audio.play().catch(() => {});
     }
 
     const start = entry.audio.volume;
@@ -187,7 +193,9 @@ class SoundEngine {
     }
     entry.audio.volume = this.targetVolume(key, baseLevel);
     entry.playingOneShot = true;
-    entry.audio.play().catch(() => { entry.broken = true; entry.playingOneShot = false; });
+    // play() reddi burada da `broken` işaretlemez (bkz. fadeTo) — yalnızca
+    // "playingOneShot" bayrağı geri alınır ki bir sonraki tetiklemede tekrar denensin.
+    entry.audio.play().catch(() => { entry.playingOneShot = false; });
     const onEnd = () => { entry.playingOneShot = false; entry.audio.removeEventListener("ended", onEnd); };
     entry.audio.addEventListener("ended", onEnd);
   }

@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, Lock, Search } from "lucide-react";
+import { Menu, Lock, Search, Volume2, VolumeX } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Mascot } from "./Mascot";
 import { HamburgerMenu } from "./HamburgerMenu";
 import { SearchOverlay } from "./SearchOverlay";
+import { useAtmosphere } from "./AtmosphereProvider";
 
 // Spesifikasyon: sol = logo + yazı + maskot (marka bloğu), orta = tamamen boş,
 // sağ = dil seçimi + Yönetici Girişi (üst barda sabit) + hamburger.
@@ -24,6 +25,7 @@ export function Navbar() {
   const [logoError, setLogoError] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { t } = useI18n();
+  const { soundEnabled, toggleSound } = useAtmosphere();
 
   useEffect(() => {
     function onScroll() {
@@ -72,6 +74,14 @@ export function Navbar() {
 
             {/* SAĞ: dil + yönetici girişi (sabit) + hamburger */}
             <div className="flex items-center gap-3 shrink-0">
+              <button
+                aria-label={soundEnabled ? "Sesi kapat" : "Sesi aç"}
+                title={soundEnabled ? "Sesi kapat" : "Sesi aç"}
+                onClick={toggleSound}
+                className="text-white/80 hover:text-tuna-gold transition-colors p-2 rounded-full hover:bg-white/5"
+              >
+                {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+              </button>
               <button
                 aria-label="Sitede ara"
                 onClick={() => setSearchOpen(true)}

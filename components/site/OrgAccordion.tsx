@@ -6,15 +6,22 @@ import type { OrgNode } from "@/lib/org-tree";
 function OrgLeaf({ node }: { node: OrgNode }) {
   if (node.node_type === "personel" && node.staff_members) {
     const s = node.staff_members;
-    return (
-      <div className="flex items-center gap-3 py-2">
+    const content = (
+      <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={s.photo_url || "/images/logo.png"} alt={s.full_name} className="w-9 h-9 rounded-full object-cover border border-tuna-gold/30" />
         <div>
           <p className="text-sm font-medium">{s.full_name}</p>
           <p className="text-xs text-tuna-mist">{s.role}</p>
         </div>
-      </div>
+      </>
+    );
+    return node.staff_id ? (
+      <Link href={`/personel/${node.staff_id}`} className="flex items-center gap-3 py-2 hover:bg-white/5 rounded-lg -mx-2 px-2 transition-colors">
+        {content}
+      </Link>
+    ) : (
+      <div className="flex items-center gap-3 py-2">{content}</div>
     );
   }
   if (node.node_type === "sayfa_baglantisi" && node.link_href) {
