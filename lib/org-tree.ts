@@ -10,7 +10,19 @@ export interface OrgNodeRow {
   is_active: boolean;
   is_hidden: boolean;
   deleted_at: string | null;
-  staff_members?: { full_name: string; role: string; photo_url: string | null } | null;
+  staff_members?: {
+    id?: string;
+    full_name: string;
+    role: string;
+    photo_url: string | null;
+    uefa_license?: string | null;
+    specialization?: string | null;
+    start_date?: string | null;
+    bio?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    social_media?: Record<string, string> | null;
+  } | null;
 }
 
 export interface OrgNode extends OrgNodeRow {

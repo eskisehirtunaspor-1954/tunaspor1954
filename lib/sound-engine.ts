@@ -182,10 +182,19 @@ class SoundEngine {
 
   // Tek seferlik efekt/olay sesi (kurt uluması, gol, düdük, tıklama, menü aç/kapa,
   // başarı/hata bildirimleri...). Aynı ses zaten çalıyorsa yeniden tetiklenmez.
-  playOneShot(key: SoundKey, baseLevel = 1) {
-    if (!this.globalEnabled || !this.categoryEnabled[CATEGORY_OF[key]]) return;
+  // `onComplete` gerçek dosya süresi bittiğinde (veya çalınamadıysa hemen)
+  // çağrılır — böylece örn. kurt ulumasının GERÇEK süresi tahmin edilmeden
+  // "bitince rüzgar tek başına devam etsin" gibi bir sıralama kurulabilir.
+  playOneShot(key: SoundKey, baseLevel = 1, onComplete?: () => void) {
+    if (!this.globalEnabled || !this.categoryEnabled[CATEGORY_OF[key]]) {
+      onComplete?.();
+      return;
+    }
     const entry = this.getEntry(key);
-    if (!entry || entry.broken || entry.playingOneShot) return;
+    if (!entry || entry.broken || entry.playingOneShot) {
+      onComplete?.();
+      return;
+    }
     try {
       entry.audio.currentTime = 0;
     } catch {
@@ -195,8 +204,8 @@ class SoundEngine {
     entry.playingOneShot = true;
     // play() reddi burada da `broken` işaretlemez (bkz. fadeTo) — yalnızca
     // "playingOneShot" bayrağı geri alınır ki bir sonraki tetiklemede tekrar denensin.
-    entry.audio.play().catch(() => { entry.playingOneShot = false; });
-    const onEnd = () => { entry.playingOneShot = false; entry.audio.removeEventListener("ended", onEnd); };
+    entry.audio.play().catch(() => { entry.playingOneShot = false; onComplete?.(); });
+    const onEnd = () => { entry.playingOneShot = false; entry.audio.removeEventListener("ended", onEnd); onComplete?.(); };
     entry.audio.addEventListener("ended", onEnd);
   }
 

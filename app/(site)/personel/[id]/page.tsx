@@ -37,11 +37,24 @@ export default async function PersonelDetailPage({ params }: { params: { id: str
           </p>
 
           <div className="flex flex-wrap gap-3 justify-center md:justify-start text-sm text-tuna-mist mb-4">
+            {staff.uefa_license && <span>🎖️ {staff.uefa_license}</span>}
             {staff.license_info && <span>🪪 Lisans: {staff.license_info}</span>}
+            {staff.specialization && <span>🎯 {staff.specialization}</span>}
             {staff.start_date && (
               <span>📅 Göreve Başlama: {new Date(staff.start_date).toLocaleDateString("tr-TR")}</span>
             )}
           </div>
+
+          {staff.resume_pdf_url && (
+            <a
+              href={staff.resume_pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mb-4 text-xs bg-tuna-gold text-tuna-black font-semibold rounded-full px-4 py-2"
+            >
+              📄 Özgeçmişi PDF Olarak İndir
+            </a>
+          )}
 
           <div className="flex flex-wrap gap-3 justify-center md:justify-start">
             {staff.phone && (
@@ -74,6 +87,39 @@ export default async function PersonelDetailPage({ params }: { params: { id: str
         <section className="mt-8">
           <h2 className="font-display text-xl mb-3">Özgeçmiş</h2>
           <p className="text-tuna-mist leading-relaxed whitespace-pre-wrap">{staff.bio}</p>
+        </section>
+      )}
+
+      {staff.teams_coached && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl mb-3">Çalıştırdığı Takımlar</h2>
+          <p className="text-tuna-mist leading-relaxed whitespace-pre-wrap">{staff.teams_coached}</p>
+        </section>
+      )}
+
+      {staff.achievements && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl mb-3">Başarıları</h2>
+          <p className="text-tuna-mist leading-relaxed whitespace-pre-wrap">{staff.achievements}</p>
+        </section>
+      )}
+
+      {staff.video_url && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl mb-3">Video</h2>
+          <video src={staff.video_url} controls className="w-full rounded-2xl border border-white/10" />
+        </section>
+      )}
+
+      {Array.isArray(staff.gallery) && staff.gallery.length > 0 && (
+        <section className="mt-8">
+          <h2 className="font-display text-xl mb-3">Fotoğraf Galerisi</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {staff.gallery.map((url: string, i: number) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={url} alt="" className="w-full aspect-square object-cover rounded-xl border border-white/10" loading="lazy" />
+            ))}
+          </div>
         </section>
       )}
     </div>

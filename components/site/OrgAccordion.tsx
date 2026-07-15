@@ -1,27 +1,16 @@
 import Link from "next/link";
 import type { OrgNode } from "@/lib/org-tree";
+import { StaffCard } from "@/components/site/StaffCard";
 
 // Native <details>/<summary> tabanlı accordion — ekstra JS gerekmeden erişilebilir,
 // sınırsız derinlikte iç içe geçebilir (her "baslik" düğümü kendi <details>'ını açar).
 function OrgLeaf({ node }: { node: OrgNode }) {
   if (node.node_type === "personel" && node.staff_members) {
     const s = node.staff_members;
-    const content = (
-      <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={s.photo_url || "/images/logo.png"} alt={s.full_name} className="w-9 h-9 rounded-full object-cover border border-tuna-gold/30" />
-        <div>
-          <p className="text-sm font-medium">{s.full_name}</p>
-          <p className="text-xs text-tuna-mist">{s.role}</p>
-        </div>
-      </>
-    );
-    return node.staff_id ? (
-      <Link href={`/personel/${node.staff_id}`} className="flex items-center gap-3 py-2 hover:bg-white/5 rounded-lg -mx-2 px-2 transition-colors">
-        {content}
-      </Link>
-    ) : (
-      <div className="flex items-center gap-3 py-2">{content}</div>
+    return (
+      <div className="max-w-[220px]">
+        <StaffCard staff={{ ...s, id: s.id || node.staff_id || "" }} />
+      </div>
     );
   }
   if (node.node_type === "sayfa_baglantisi" && node.link_href) {
@@ -51,6 +40,10 @@ export function OrgAccordion({ nodes, depth = 0 }: { nodes: OrgNode[]; depth?: n
               <OrgAccordion nodes={node.children} depth={depth + 1} />
             </div>
           </details>
+        ) : node.node_type === "personel" && node.staff_members ? (
+          <div key={node.id}>
+            <OrgLeaf node={node} />
+          </div>
         ) : (
           <div key={node.id} className={depth === 0 ? "glass-panel px-4" : "px-2"}>
             <OrgLeaf node={node} />

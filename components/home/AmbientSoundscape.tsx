@@ -12,9 +12,7 @@ export function AmbientSoundscape() {
   const { atmosphere, weatherMode, soundEnabled, volume } = useAtmosphere();
   const engine = getSoundEngine();
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const howlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const busyRef = useRef<"wolf" | "crowd" | null>(null);
 
   // Yönetici panelinden yüklenen özel ses dosyalarını/ayarlarını bir kez çeker.
   useEffect(() => {
@@ -33,82 +31,57 @@ export function AmbientSoundscape() {
     engine.setMasterVolume(volume);
   }, [volume, engine]);
 
+  // --- Günün saatine/havasına göre taban atmosfer (sürekli loop katmanları) ---
   useEffect(() => {
     if (!soundEnabled) return;
-
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    if (howlTimerRef.current) clearTimeout(howlTimerRef.current);
-    if (swellTimerRef.current) clearTimeout(swellTimerRef.current);
-    busyRef.current = null;
-
     const windBoost = weatherMode === "firtinali" ? 1.5 : weatherMode === "yagmurlu" ? 1.2 : weatherMode === "sisli" || weatherMode === "karli" ? 0.55 : 1;
 
-    // --- Günün saatine göre taban atmosfer ---
     if (atmosphere === "sabah" || atmosphere === "ogle") {
-      // ☀️ Gündüz: hafif arka plan + hafif rüzgar, düşük seviyede sürekli loop.
       engine.fadeTo("background", 0.5);
       engine.fadeTo("wind", 0.45 * windBoost);
       engine.fadeTo("stadium-ambience", 0);
-      engine.fadeTo("crowd", 0);
     } else if (atmosphere === "aksam") {
-      // 🌇 Gün batımı: rüzgar biraz artar, stadyum atmosferi hafifçe başlar (maç havasına geçiş).
       engine.fadeTo("background", 0.25);
       engine.fadeTo("wind", 0.65 * windBoost);
       engine.fadeTo("stadium-ambience", 0.3);
-      engine.fadeTo("crowd", 0);
     } else {
-      // 🌙 Gece: rüzgar hemen → kurt uluması (5-10 dk'da bir tekrarlar) →
-      // +2sn stadyum atmosferi → +3sn düşük seviyede sürekli taraftar sesi,
-      // üzerine belirli aralıklarla tribün tezahürat yükselişi biner.
       engine.fadeTo("background", 0);
       engine.fadeTo("wind", 0.5 * windBoost);
-
-      const scheduleHowl = () => {
-        const attempt = () => {
-          if (busyRef.current === "crowd") {
-            howlTimerRef.current = setTimeout(attempt, (5 + Math.random() * 10) * 1000);
-            return;
-          }
-          busyRef.current = "wolf";
-          engine.playOneShot("wolf-howl");
-          setTimeout(() => { if (busyRef.current === "wolf") busyRef.current = null; }, 6000);
-          howlTimerRef.current = setTimeout(attempt, (300 + Math.random() * 300) * 1000); // 5-10 dk
-        };
-        howlTimerRef.current = setTimeout(attempt, (6 + Math.random() * 10) * 1000);
-      };
-      scheduleHowl();
-
-      const t1 = setTimeout(() => engine.fadeTo("stadium-ambience", 0.4), 2000);
-      const t2 = setTimeout(() => engine.fadeTo("crowd", 0.3), 3000);
-      timersRef.current.push(t1, t2);
-
-      const scheduleSwell = () => {
-        const attempt = () => {
-          if (busyRef.current === "wolf") {
-            swellTimerRef.current = setTimeout(attempt, (5 + Math.random() * 10) * 1000);
-            return;
-          }
-          busyRef.current = "crowd";
-          engine.fadeTo("crowd", 0.65, 2000);
-          setTimeout(() => {
-            engine.fadeTo("crowd", 0.3, 2500);
-            busyRef.current = null;
-          }, 10000 + Math.random() * 10000);
-          const silenceMinutes = 8 + Math.random() * 12;
-          swellTimerRef.current = setTimeout(attempt, (20 + silenceMinutes * 60) * 1000);
-        };
-        swellTimerRef.current = setTimeout(attempt, 15000);
-      };
-      scheduleSwell();
+      engine.fadeTo("stadium-ambience", 0.35);
     }
+  }, [soundEnabled, atmosphere, weatherMode, engine]);
+
+  // Sayfa açılır açılmaz (saatten bağımsız) rüzgar + kurt uluması birlikte başlar.
+  // Kurt ulumasının GERÇEK dosya süresi bitince (tahmini süre değil, gerçek "ended"
+  // olayı — bkz. sound-engine.ts playOneShot onComplete) yalnızca rüzgar düşük
+  // seviyede tek başına devam eder; ardından belirli (doğal/rastgele) aralıklarla
+  // taraftar tezahüratı devreye girer. Yalnızca bir kez (ses açıldığında) tetiklenir.
+  useEffect(() => {
+    if (!soundEnabled) return;
+
+    const t0 = setTimeout(() => {
+      engine.playOneShot("wolf-howl", 1, () => {
+        const scheduleSwell = () => {
+          const attempt = () => {
+            engine.fadeTo("crowd", 0.6, 2000);
+            setTimeout(() => engine.fadeTo("crowd", 0.25, 2500), 10000 + Math.random() * 10000);
+            const silenceMinutes = 8 + Math.random() * 12; // 8-20 dakika arası doğal aralık
+            swellTimerRef.current = setTimeout(attempt, (20 + silenceMinutes * 60) * 1000);
+          };
+          swellTimerRef.current = setTimeout(attempt, 5000);
+        };
+        scheduleSwell();
+      });
+    }, 300); // rüzgarın bir tık önce işitilmesi için minik bir gecikme
+    timersRef.current.push(t0);
 
     return () => {
       timersRef.current.forEach(clearTimeout);
-      if (howlTimerRef.current) clearTimeout(howlTimerRef.current);
+      timersRef.current = [];
       if (swellTimerRef.current) clearTimeout(swellTimerRef.current);
     };
-  }, [soundEnabled, atmosphere, weatherMode, engine]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [soundEnabled, engine]);
 
   return null;
 }

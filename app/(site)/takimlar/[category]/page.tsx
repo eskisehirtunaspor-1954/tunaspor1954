@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { T } from "@/components/layout/T";
 import { PlayerCard, EmptyPlayerCard } from "@/components/site/PlayerCard";
+import { StaffCard } from "@/components/site/StaffCard";
 
 interface Props { params: { category: string } }
 
@@ -134,24 +135,7 @@ export default async function TeamDetailPage({ params }: Props) {
         <T k="team_section_staff" as="h2" className="font-display text-2xl mb-6" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {(staff ?? []).map((s) => (
-            <div key={s.id} className="glass-panel p-4 text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={s.photo_url || "/images/logo.png"}
-                alt={s.full_name}
-                className="w-16 h-16 rounded-full object-cover mx-auto mb-2 border border-tuna-gold/20"
-              />
-              <div className="text-sm font-medium">{s.full_name}</div>
-              <div className="text-xs text-tuna-mist">{s.role}</div>
-              {s.license_info && <div className="text-[11px] text-tuna-mist mt-1">Lisans: {s.license_info}</div>}
-              {s.description && <p className="text-[11px] text-tuna-mist mt-1 line-clamp-2">{s.description}</p>}
-              {(s.phone || s.email) && (
-                <div className="text-[11px] text-tuna-gold mt-1 space-y-0.5">
-                  {s.phone && <div>{s.phone}</div>}
-                  {s.email && <div className="truncate">{s.email}</div>}
-                </div>
-              )}
-            </div>
+            <StaffCard key={s.id} staff={s} />
           ))}
           {!staff?.length && <T k="empty_staff" as="p" className="text-tuna-mist col-span-full" />}
         </div>

@@ -10,7 +10,10 @@ export default async function KulubumuzPage() {
 
   const [{ data: baskan }, { data: nodeRows }] = await Promise.all([
     supabase.from("baskan_mesaji").select("*").eq("id", 1).maybeSingle(),
-    supabase.from("org_nodes").select("*, staff_members(full_name, role, photo_url)").order("display_order"),
+    supabase
+      .from("org_nodes")
+      .select("*, staff_members(id, full_name, role, photo_url, uefa_license, specialization, start_date, bio, phone, email, social_media)")
+      .order("display_order"),
   ]);
 
   const tree = buildOrgTree((nodeRows ?? []) as unknown as OrgNodeRow[]);

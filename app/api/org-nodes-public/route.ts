@@ -7,7 +7,7 @@ export async function GET() {
   const supabase = createClient();
   const { data } = await supabase
     .from("org_nodes")
-    .select("*, staff_members(full_name, role, photo_url)")
+    .select("*, staff_members(id, full_name, role, photo_url, uefa_license, specialization, start_date, bio, phone, email, social_media)")
     .order("display_order");
   return NextResponse.json({ data: data ?? [] });
 }

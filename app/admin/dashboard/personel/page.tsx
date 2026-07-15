@@ -20,10 +20,17 @@ export default function Page() {
     { name: "phone", label: "Telefon (opsiyonel)" },
     { name: "email", label: "E-posta (opsiyonel)" },
     { name: "license_info", label: "Lisans Bilgisi" },
+    { name: "uefa_license", label: "UEFA Lisansı (Pro/A/B/C)" },
+    { name: "specialization", label: "Uzmanlık Alanı" },
     { name: "start_date", label: "Göreve Başlama Tarihi", type: "date" },
     { name: "bio", label: "Özgeçmiş", type: "textarea" },
     { name: "description", label: "Kısa Açıklama", type: "textarea" },
-    { name: "is_published", label: "Yayınla", type: "checkbox" },
+    { name: "teams_coached", label: "Çalıştırdığı Takımlar", type: "textarea" },
+    { name: "achievements", label: "Başarıları", type: "textarea" },
+    { name: "video_url", label: "Tanıtım Videosu", type: "video", folder: "staff" },
+    { name: "gallery", label: "Fotoğraf Galerisi", type: "gallery", folder: "staff" },
+    { name: "resume_pdf_url", label: "Özgeçmiş PDF", type: "file", folder: "staff" },
+    { name: "is_published", label: "Yayınla (Aktif)", type: "checkbox" },
   ];
 
   return (
@@ -33,6 +40,7 @@ export default function Page() {
       titleField="full_name"
       subtitleField="role"
       fields={fields}
+      reorderable
     />
   );
 }

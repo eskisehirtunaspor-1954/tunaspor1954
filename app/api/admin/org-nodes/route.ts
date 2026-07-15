@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("org_nodes")
-    .select("*, staff_members(full_name, role, photo_url)")
+    .select("*, staff_members(id, full_name, role, photo_url, uefa_license, specialization, start_date, bio, phone, email, social_media)")
     .order("display_order", { ascending: true });
 
   if (error) return NextResponse.json({ error: friendlyError(error) }, { status: 500 });
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
 
 const patchSchema = z.object({
   id: z.string().uuid(),
+  parent_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1).max(160).optional(),
   is_active: z.boolean().optional(),
   is_hidden: z.boolean().optional(),

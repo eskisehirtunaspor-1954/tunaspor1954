@@ -190,7 +190,12 @@ function NewNodeForm({
   );
 }
 
-function NodeRow({ node, staffList, onChanged, depth }: { node: OrgNode; staffList: Staff[]; onChanged: () => void; depth: number }) {
+function NodeRow({
+  node, staffList, onChanged, depth, dragHandleProps, isDragging,
+}: {
+  node: OrgNode; staffList: Staff[]; onChanged: () => void; depth: number;
+  dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>; isDragging?: boolean;
+}) {
   const [addingChild, setAddingChild] = useState(false);
 
   async function patch(updates: Record<string, unknown>) {
@@ -213,7 +218,12 @@ function NodeRow({ node, staffList, onChanged, depth }: { node: OrgNode; staffLi
 
   return (
     <div className={depth > 0 ? "ml-5 border-l border-white/10 pl-3 mt-2" : "mt-2"}>
-      <div className="flex flex-wrap items-center gap-2 bg-white/5 rounded-lg px-3 py-2">
+      <div className={`flex flex-wrap items-center gap-2 bg-white/5 rounded-lg px-3 py-2 ${isDragging ? "opacity-40" : ""}`}>
+        {dragHandleProps && (
+          <span {...dragHandleProps} className="text-tuna-mist select-none cursor-grab active:cursor-grabbing" title="Sürükleyerek sırala">
+            ⠿
+          </span>
+        )}
         <span className="text-[10px] uppercase tracking-wide text-tuna-mist border border-white/15 rounded px-1.5 py-0.5">
           {NODE_TYPE_LABEL[node.node_type]}
         </span>
@@ -236,10 +246,63 @@ function NodeRow({ node, staffList, onChanged, depth }: { node: OrgNode; staffLi
       {addingChild && (
         <NewNodeForm parentId={node.id} staffList={staffList} onCreated={() => { setAddingChild(false); onChanged(); }} onCancel={() => setAddingChild(false)} />
       )}
-      {node.children.map((child) => (
-        <NodeRow key={child.id} node={child} staffList={staffList} onChanged={onChanged} depth={depth + 1} />
-      ))}
+      <NodeList nodes={node.children} staffList={staffList} onChanged={onChanged} depth={depth + 1} />
     </div>
+  );
+}
+
+// Aynı üst öğeye bağlı kardeş düğümler arasında sürükle-bırak sıralama —
+// bırakma anında yeni sırayı yansıtan display_order değerleri PATCH ile kaydedilir.
+function NodeList({ nodes, staffList, onChanged, depth }: { nodes: OrgNode[]; staffList: Staff[]; onChanged: () => void; depth: number }) {
+  const [dragId, setDragId] = useState<string | null>(null);
+
+  async function handleDrop(targetId: string) {
+    if (!dragId || dragId === targetId) { setDragId(null); return; }
+    const from = nodes.findIndex((n) => n.id === dragId);
+    const to = nodes.findIndex((n) => n.id === targetId);
+    setDragId(null);
+    if (from === -1 || to === -1) return;
+
+    const reordered = [...nodes];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+
+    await Promise.all(
+      reordered.map((n, index) =>
+        n.display_order === index
+          ? null
+          : fetch("/api/admin/org-nodes", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: n.id, display_order: index }),
+            })
+      )
+    );
+    onChanged();
+  }
+
+  return (
+    <>
+      {nodes.map((node) => (
+        <div
+          key={node.id}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => handleDrop(node.id)}
+        >
+          <NodeRow
+            node={node}
+            staffList={staffList}
+            onChanged={onChanged}
+            depth={depth}
+            isDragging={dragId === node.id}
+            dragHandleProps={{
+              draggable: true,
+              onDragStart: () => setDragId(node.id),
+            }}
+          />
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -288,10 +351,8 @@ export default function KulubumuzOrganizasyonPage() {
       </div>
 
       <div className="glass-panel p-6">
-        <h2 className="font-semibold mb-3">Organizasyon Ağacı</h2>
-        {tree.map((node) => (
-          <NodeRow key={node.id} node={node} staffList={staffList} onChanged={load} depth={0} />
-        ))}
+        <h2 className="font-semibold mb-3">Organizasyon Ağacı (sürükleyerek sırala)</h2>
+        <NodeList nodes={tree} staffList={staffList} onChanged={load} depth={0} />
         {!tree.length && <p className="text-tuna-mist text-sm">Henüz bir başlık eklenmedi.</p>}
       </div>
 
