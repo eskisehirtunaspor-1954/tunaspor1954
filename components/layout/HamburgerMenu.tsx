@@ -169,13 +169,7 @@ export function HamburgerMenu({ open, onClose }: Props) {
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                         className="overflow-hidden pl-4 py-2 bg-white/[0.02]"
                       >
-                        {orgTree.length > 0 ? (
-                          <OrgAccordion nodes={orgTree} depth={1} />
-                        ) : (
-                          <Link href="/kulubumuz" onClick={onClose} className="block py-2 text-sm text-tuna-mist hover:text-tuna-gold">
-                            Kulübümüz sayfasına git →
-                          </Link>
-                        )}
+                        {orgTree.length > 0 && <OrgAccordion nodes={orgTree} depth={1} onNavigate={onClose} />}
                       </motion.div>
                     )}
                   </AnimatePresence>

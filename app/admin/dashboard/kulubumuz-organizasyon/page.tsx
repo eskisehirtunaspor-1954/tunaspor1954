@@ -190,6 +190,62 @@ function NewNodeForm({
   );
 }
 
+function EditNodeForm({ node, staffList, onSaved, onCancel }: { node: OrgNode; staffList: Staff[]; onSaved: () => void; onCancel: () => void }) {
+  const [title, setTitle] = useState(node.title);
+  const [staffId, setStaffId] = useState(node.staff_id ?? "");
+  const [linkHref, setLinkHref] = useState(node.link_href ?? "");
+  const [content, setContent] = useState(node.content ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSaving(true);
+    await fetch("/api/admin/org-nodes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: node.id,
+        title,
+        staff_id: node.node_type === "personel" ? staffId || null : undefined,
+        link_href: node.node_type === "sayfa_baglantisi" ? linkHref || null : undefined,
+        content: node.node_type === "metin" ? content || null : undefined,
+      }),
+    });
+    setSaving(false);
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-wrap items-center gap-2 bg-white/5 rounded-lg p-2 mt-2">
+      <input
+        placeholder="Başlık"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="bg-white/5 rounded px-2 py-1.5 text-xs border border-white/10 flex-1 min-w-[120px]"
+      />
+      {node.node_type === "personel" && (
+        <select value={staffId} onChange={(e) => setStaffId(e.target.value)} className="bg-white/5 rounded px-2 py-1.5 text-xs border border-white/10">
+          <option value="">Personel seç (fotoğraflı kart için)</option>
+          {staffList.map((s) => (
+            <option key={s.id} value={s.id}>{s.full_name} — {s.role}</option>
+          ))}
+        </select>
+      )}
+      {node.node_type === "sayfa_baglantisi" && (
+        <input placeholder="/sponsorlar" value={linkHref} onChange={(e) => setLinkHref(e.target.value)} className="bg-white/5 rounded px-2 py-1.5 text-xs border border-white/10" />
+      )}
+      {node.node_type === "metin" && (
+        <input placeholder="Kısa metin" value={content} onChange={(e) => setContent(e.target.value)} className="bg-white/5 rounded px-2 py-1.5 text-xs border border-white/10 flex-1" />
+      )}
+      <button disabled={saving} className="bg-tuna-yellow text-tuna-black text-xs font-semibold px-3 py-1.5 rounded">
+        {saving ? "Kaydediliyor..." : "Kaydet"}
+      </button>
+      <button type="button" onClick={onCancel} className="text-xs text-tuna-mist">İptal</button>
+    </form>
+  );
+}
+
 function NodeRow({
   node, staffList, onChanged, depth, dragHandleProps, isDragging,
 }: {
@@ -197,6 +253,7 @@ function NodeRow({
   dragHandleProps?: React.HTMLAttributes<HTMLSpanElement>; isDragging?: boolean;
 }) {
   const [addingChild, setAddingChild] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function patch(updates: Record<string, unknown>) {
     await fetch("/api/admin/org-nodes", {
@@ -227,7 +284,13 @@ function NodeRow({
         <span className="text-[10px] uppercase tracking-wide text-tuna-mist border border-white/15 rounded px-1.5 py-0.5">
           {NODE_TYPE_LABEL[node.node_type]}
         </span>
-        <span className="text-sm font-medium flex-1">{node.title}</span>
+        <span className="text-sm font-medium flex-1">
+          {node.title}
+          {node.node_type === "personel" && !node.staff_id && (
+            <span className="ml-2 text-[10px] text-tuna-gold/70">(personel atanmadı)</span>
+          )}
+        </span>
+        <button onClick={() => setEditing((v) => !v)} className="text-tuna-yellow text-xs hover:underline">Düzenle</button>
         <button onClick={() => moveOrder(-1)} className="text-tuna-mist hover:text-white text-xs" title="Yukarı taşı">▲</button>
         <button onClick={() => moveOrder(1)} className="text-tuna-mist hover:text-white text-xs" title="Aşağı taşı">▼</button>
         <button onClick={() => patch({ is_active: !node.is_active })} className={`text-xs ${node.is_active ? "text-green-400" : "text-tuna-mist"}`}>
@@ -243,6 +306,9 @@ function NodeRow({
         )}
         <button onClick={softDelete} className="text-xs text-red-400 hover:underline">Sil</button>
       </div>
+      {editing && (
+        <EditNodeForm node={node} staffList={staffList} onSaved={() => { setEditing(false); onChanged(); }} onCancel={() => setEditing(false)} />
+      )}
       {addingChild && (
         <NewNodeForm parentId={node.id} staffList={staffList} onCreated={() => { setAddingChild(false); onChanged(); }} onCancel={() => setAddingChild(false)} />
       )}
