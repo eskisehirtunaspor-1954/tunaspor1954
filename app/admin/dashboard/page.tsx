@@ -16,6 +16,7 @@ const MODULES = [
   { href: "/admin/dashboard/sponsorlar", label: "Sponsorlar" },
   { href: "/admin/dashboard/personel", label: "Personeller" },
   { href: "/admin/dashboard/kulubumuz-organizasyon", label: "Kulübümüz — Organizasyon" },
+  { href: "/admin/dashboard/ses-yonetimi", label: "🔊 Ses Yönetimi" },
   { href: "/admin/dashboard/iletisim", label: "İletişim Bilgileri" },
   { href: "/admin/dashboard/sosyal-medya", label: "Sosyal Medya" },
   { href: "/admin/dashboard/sosyal-akis", label: "Sosyal Medya Akışı (Instagram Tarzı)" },

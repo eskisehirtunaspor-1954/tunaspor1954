@@ -2,9 +2,17 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { getSoundEngine, type SoundCategory } from "@/lib/sound-engine";
 
 export type Atmosphere = "sabah" | "ogle" | "aksam" | "gece";
 export type WeatherMode = "acik" | "parcali_bulutlu" | "bulutlu" | "yagmurlu" | "karli" | "sisli" | "firtinali";
+
+const CATEGORY_LABEL: Record<SoundCategory, string> = {
+  atmosfer: "Atmosfer",
+  tribun: "Tribün",
+  kurt: "Kurt",
+  efekt: "Efektler",
+};
 
 interface AtmosphereContextValue {
   atmosphere: Atmosphere;
@@ -14,7 +22,14 @@ interface AtmosphereContextValue {
   toggleSound: () => void;
   volume: number; // 0-1
   setVolume: (v: number) => void;
+  categoryVolumes: Record<SoundCategory, number>;
+  categoryEnabled: Record<SoundCategory, boolean>;
+  setCategoryVolume: (cat: SoundCategory, v: number) => void;
+  toggleCategory: (cat: SoundCategory) => void;
 }
+
+const DEFAULT_CATEGORY_VOLUMES: Record<SoundCategory, number> = { atmosfer: 1, tribun: 1, kurt: 1, efekt: 1 };
+const DEFAULT_CATEGORY_ENABLED: Record<SoundCategory, boolean> = { atmosfer: true, tribun: true, kurt: true, efekt: true };
 
 const AtmosphereContext = createContext<AtmosphereContextValue>({
   atmosphere: "gece",
@@ -24,6 +39,10 @@ const AtmosphereContext = createContext<AtmosphereContextValue>({
   toggleSound: () => {},
   volume: 0.7,
   setVolume: () => {},
+  categoryVolumes: DEFAULT_CATEGORY_VOLUMES,
+  categoryEnabled: DEFAULT_CATEGORY_ENABLED,
+  setCategoryVolume: () => {},
+  toggleCategory: () => {},
 });
 
 // Ses hiçbir zaman sayfa yüklenir yüklenmez başlamamalı — yalnızca kullanıcının
@@ -89,12 +108,26 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [siteSoundEnabled, setSiteSoundEnabled] = useState(true);
   const [volume, setVolumeState] = useState(0.7);
+  const [categoryVolumes, setCategoryVolumes] = useState<Record<SoundCategory, number>>(DEFAULT_CATEGORY_VOLUMES);
+  const [categoryEnabled, setCategoryEnabled] = useState<Record<SoundCategory, boolean>>(DEFAULT_CATEGORY_ENABLED);
   const hasInteracted = useHasInteracted();
 
   useEffect(() => {
     setSoundEnabled(localStorage.getItem("tuna_atmosphere_sound") === "on");
     const savedVolume = localStorage.getItem("tuna_atmosphere_volume");
     if (savedVolume) setVolumeState(parseFloat(savedVolume));
+
+    const engine = getSoundEngine();
+    (Object.keys(DEFAULT_CATEGORY_VOLUMES) as SoundCategory[]).forEach((cat) => {
+      const savedCatVolume = localStorage.getItem(`tuna_sound_${cat}_volume`);
+      const savedCatEnabled = localStorage.getItem(`tuna_sound_${cat}_enabled`);
+      const v = savedCatVolume ? parseFloat(savedCatVolume) : 1;
+      const enabled = savedCatEnabled !== "off";
+      setCategoryVolumes((prev) => ({ ...prev, [cat]: v }));
+      setCategoryEnabled((prev) => ({ ...prev, [cat]: enabled }));
+      engine.setCategoryVolume(cat, v);
+      engine.setCategoryEnabled(cat, enabled);
+    });
   }, []);
 
   function toggleSound() {
@@ -102,6 +135,21 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
       const next = !prev;
       localStorage.setItem("tuna_atmosphere_sound", next ? "on" : "off");
       return next;
+    });
+  }
+
+  function setCategoryVolume(cat: SoundCategory, v: number) {
+    setCategoryVolumes((prev) => ({ ...prev, [cat]: v }));
+    localStorage.setItem(`tuna_sound_${cat}_volume`, String(v));
+    getSoundEngine().setCategoryVolume(cat, v);
+  }
+
+  function toggleCategory(cat: SoundCategory) {
+    setCategoryEnabled((prev) => {
+      const next = !prev[cat];
+      localStorage.setItem(`tuna_sound_${cat}_enabled`, next ? "on" : "off");
+      getSoundEngine().setCategoryEnabled(cat, next);
+      return { ...prev, [cat]: next };
     });
   }
 
@@ -156,8 +204,11 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
   // bu context'i dinleyen TÜM bileşenler (StadiumBackground, WeatherEffects,
   // Hero, LightningSystem, AmbientSoundscape...) gereksiz yere yeniden render olur.
   const value = useMemo(
-    () => ({ atmosphere, weatherMode, specialMoment, soundEnabled: effectiveSoundEnabled, toggleSound, volume, setVolume }),
-    [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled, volume]
+    () => ({
+      atmosphere, weatherMode, specialMoment, soundEnabled: effectiveSoundEnabled, toggleSound, volume, setVolume,
+      categoryVolumes, categoryEnabled, setCategoryVolume, toggleCategory,
+    }),
+    [atmosphere, weatherMode, specialMoment, effectiveSoundEnabled, volume, categoryVolumes, categoryEnabled]
   );
 
   const [volumePanelOpen, setVolumePanelOpen] = useState(false);
@@ -173,17 +224,36 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
         onMouseLeave={() => setVolumePanelOpen(false)}
       >
         {volumePanelOpen && (
-          <div className="glass-panel px-3 py-2 flex items-center">
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              aria-label="Ses seviyesi"
-              className="w-24 accent-tuna-gold"
-            />
+          <div className="glass-panel px-4 py-3 flex flex-col gap-2 w-56">
+            <label className="flex items-center gap-2 text-xs text-tuna-mist">
+              <span className="w-16 shrink-0">Ana Ses</span>
+              <input
+                type="range" min={0} max={1} step={0.05}
+                value={volume}
+                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                aria-label="Ana ses seviyesi"
+                className="flex-1 accent-tuna-gold"
+              />
+            </label>
+            {(Object.keys(CATEGORY_LABEL) as SoundCategory[]).map((cat) => (
+              <label key={cat} className="flex items-center gap-2 text-xs text-tuna-mist">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  className={`w-16 shrink-0 text-left ${categoryEnabled[cat] ? "text-tuna-gold" : "text-tuna-mist/50 line-through"}`}
+                >
+                  {CATEGORY_LABEL[cat]}
+                </button>
+                <input
+                  type="range" min={0} max={1} step={0.05}
+                  value={categoryVolumes[cat]}
+                  onChange={(e) => setCategoryVolume(cat, parseFloat(e.target.value))}
+                  disabled={!categoryEnabled[cat]}
+                  aria-label={`${CATEGORY_LABEL[cat]} ses seviyesi`}
+                  className="flex-1 accent-tuna-gold disabled:opacity-40"
+                />
+              </label>
+            ))}
           </div>
         )}
         <button

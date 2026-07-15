@@ -2,213 +2,113 @@
 
 import { useEffect, useRef } from "react";
 import { useAtmosphere } from "@/components/layout/AtmosphereProvider";
+import { getSoundEngine } from "@/lib/sound-engine";
 
-// Sinematik atmosfer sistemi — sentetik (Web Audio osilatör) seslerin yerini
-// gerçek ses dosyaları aldı. Dosyalar public/audio/ altına kulüp tarafından
-// eklenir; kod yalnızca bu yolları referans alır, dosya üretmez.
-const SOUND_FILES = {
-  birds: "/audio/birds.mp3",
-  wind: "/audio/wind.mp3",
-  rain: "/audio/rain.mp3",
-  thunder: "/audio/thunder.mp3",
-  wolf: "/audio/wolf.mp3",
-  drums: "/audio/drums.mp3",
-  crowd: "/audio/crowd.mp3",
-} as const;
-
-type SoundKey = keyof typeof SOUND_FILES;
-const ALL_KEYS = Object.keys(SOUND_FILES) as SoundKey[];
-
-// Her katmanın göreli karışım seviyesi (0-1) — kullanıcının tek bir ana ses
-// seviyesi kaydırıcısıyla çarpılır. Örn. gök gürültüsü doğası gereği rüzgardan
-// daha baskın olmalı; taraftar sesi sürekli çaldığı için düşük tutulur.
-const LEVELS: Record<SoundKey, number> = {
-  birds: 0.35,
-  wind: 0.3,
-  rain: 0.45,
-  thunder: 0.6,
-  wolf: 0.65,
-  drums: 0.35,
-  crowd: 0.3,
-};
-
-const FADE_MS = 4000; // "3-5 saniyelik yumuşak geçiş"
-
-// Tek bir ses dosyasının <audio> elemanını ve yumuşak ses seviyesi geçişini
-// (fade in/out) yöneten küçük yardımcı — AudioContext/GainNode grafiği yerine
-// doğrudan HTMLAudioElement.volume üzerinde requestAnimationFrame ile
-// enterpolasyon yapar; gerçek dosya oynatımı için bu, sentetik sesteki Web
-// Audio grafiğinden daha basit ve yeterlidir.
-class SoundLayer {
-  private audio: HTMLAudioElement | null = null;
-  private rafId: number | null = null;
-  private lastError = false;
-
-  constructor(private src: string, private loop: boolean) {}
-
-  private ensure(): HTMLAudioElement | null {
-    if (typeof window === "undefined") return null;
-    if (!this.audio) {
-      const audio = new Audio(this.src);
-      audio.loop = this.loop;
-      audio.volume = 0;
-      audio.preload = "auto";
-      // Dosya eksik/bozuksa sessizce yut — kulüp henüz public/audio/ dosyalarını
-      // eklememiş olabilir, bu durumda atmosfer sistemi çökmemeli.
-      audio.addEventListener("error", () => { this.lastError = true; });
-      this.audio = audio;
-    }
-    return this.audio;
-  }
-
-  fadeTo(target: number, ms = FADE_MS) {
-    const audio = this.ensure();
-    if (!audio || this.lastError) return;
-    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
-
-    if (target > 0 && audio.paused) {
-      audio.play().catch(() => { this.lastError = true; });
-    }
-
-    const start = audio.volume;
-    const startTime = performance.now();
-    const step = (now: number) => {
-      const t = ms <= 0 ? 1 : Math.min(1, (now - startTime) / ms);
-      audio.volume = Math.max(0, Math.min(1, start + (target - start) * t));
-      if (t < 1) {
-        this.rafId = requestAnimationFrame(step);
-      } else {
-        this.rafId = null;
-        if (target === 0) audio.pause();
-      }
-    };
-    this.rafId = requestAnimationFrame(step);
-  }
-
-  stopImmediately() {
-    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
-    this.audio?.pause();
-  }
-}
-
+// Sinematik atmosfer sıralayıcısı — gerçek sesin ne zaman/ne seviyede çalacağına
+// karar verir, gerçek <audio> oynatımı/karışım/ölçekleme lib/sound-engine.ts'te
+// yaşayan tek örnekli motorda yapılır (bu bileşen yeniden monte olsa/kaldırılsa
+// bile motor ve sesler etkilenmez — "sayfa değiştirince kesilmesin" kuralı).
 export function AmbientSoundscape() {
   const { atmosphere, weatherMode, soundEnabled, volume } = useAtmosphere();
-  const layersRef = useRef<Partial<Record<SoundKey, SoundLayer>>>({});
-  const activeBaseRef = useRef<Record<SoundKey, number>>(
-    Object.fromEntries(ALL_KEYS.map((k) => [k, 0])) as Record<SoundKey, number>
-  );
+  const engine = getSoundEngine();
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const stormLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const howlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const busyRef = useRef<"wolf" | "crowd" | null>(null);
 
-  function getLayer(key: SoundKey, loop = true): SoundLayer {
-    if (!layersRef.current[key]) layersRef.current[key] = new SoundLayer(SOUND_FILES[key], loop);
-    return layersRef.current[key]!;
-  }
-
-  // Bir katmanı "aktif taban seviyesi" olarak işaretler ve o seviyeye (ana ses
-  // seviyesiyle çarpılmış olarak) fade eder — böylece ses seviyesi kaydırıcısı
-  // değiştiğinde (ayrı efekt) hangi katmanların yeniden ölçekleneceği bilinir.
-  function setLayer(key: SoundKey, baseLevel: number, ms = FADE_MS, loop = true) {
-    activeBaseRef.current[key] = baseLevel;
-    getLayer(key, loop).fadeTo(baseLevel * volume, ms);
-  }
+  // Yönetici panelinden yüklenen özel ses dosyalarını/ayarlarını bir kez çeker.
+  useEffect(() => {
+    fetch("/api/sound-assets-public")
+      .then((r) => r.json())
+      .then((d) => engine.setOverrides(d.data ?? []))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    if (!soundEnabled) {
-      ALL_KEYS.forEach((k) => getLayer(k).fadeTo(0, 1200));
-      activeBaseRef.current = Object.fromEntries(ALL_KEYS.map((k) => [k, 0])) as Record<SoundKey, number>;
-      return;
-    }
+    engine.setMasterEnabled(soundEnabled);
+  }, [soundEnabled, engine]);
+
+  useEffect(() => {
+    engine.setMasterVolume(volume);
+  }, [volume, engine]);
+
+  useEffect(() => {
+    if (!soundEnabled) return;
 
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
-    if (stormLoopRef.current) clearTimeout(stormLoopRef.current);
+    if (howlTimerRef.current) clearTimeout(howlTimerRef.current);
+    if (swellTimerRef.current) clearTimeout(swellTimerRef.current);
+    busyRef.current = null;
+
+    const windBoost = weatherMode === "firtinali" ? 1.5 : weatherMode === "yagmurlu" ? 1.2 : weatherMode === "sisli" || weatherMode === "karli" ? 0.55 : 1;
 
     // --- Günün saatine göre taban atmosfer ---
     if (atmosphere === "sabah" || atmosphere === "ogle") {
-      // ☀️ Gündüz: hafif kuş + hafif rüzgar, sürekli düşük seviye loop.
-      setLayer("birds", LEVELS.birds * 0.6);
-      setLayer("wind", LEVELS.wind * 0.5);
-      setLayer("drums", 0);
-      setLayer("wolf", 0, 800, false);
-      setLayer("crowd", 0);
+      // ☀️ Gündüz: hafif arka plan + hafif rüzgar, düşük seviyede sürekli loop.
+      engine.fadeTo("background", 0.5);
+      engine.fadeTo("wind", 0.45 * windBoost);
+      engine.fadeTo("stadium-ambience", 0);
+      engine.fadeTo("crowd", 0);
     } else if (atmosphere === "aksam") {
-      // 🌇 Gün batımı: rüzgar biraz artar, çok hafif davul başlar (maç havasına geçiş).
-      setLayer("birds", 0);
-      setLayer("wind", LEVELS.wind * 0.75);
-      setLayer("drums", LEVELS.drums * 0.25);
-      setLayer("wolf", 0, 800, false);
-      setLayer("crowd", 0);
+      // 🌇 Gün batımı: rüzgar biraz artar, stadyum atmosferi hafifçe başlar (maç havasına geçiş).
+      engine.fadeTo("background", 0.25);
+      engine.fadeTo("wind", 0.65 * windBoost);
+      engine.fadeTo("stadium-ambience", 0.3);
+      engine.fadeTo("crowd", 0);
     } else {
-      // 🌙 Gece: rüzgar hemen → 1 kez kurt uluması → +2sn davul → +3sn taraftar sesi.
-      setLayer("birds", 0);
-      setLayer("wind", LEVELS.wind);
-      setLayer("drums", 0);
-      setLayer("crowd", 0);
-      getLayer("wolf", false).fadeTo(LEVELS.wolf * volume, 1500);
-      const t1 = setTimeout(() => setLayer("drums", LEVELS.drums), 2000);
-      const t2 = setTimeout(() => setLayer("crowd", LEVELS.crowd * 0.6), 3000);
-      timersRef.current.push(t1, t2);
-    }
+      // 🌙 Gece: rüzgar hemen → kurt uluması (5-10 dk'da bir tekrarlar) →
+      // +2sn stadyum atmosferi → +3sn düşük seviyede sürekli taraftar sesi,
+      // üzerine belirli aralıklarla tribün tezahürat yükselişi biner.
+      engine.fadeTo("background", 0);
+      engine.fadeTo("wind", 0.5 * windBoost);
 
-    // --- Hava durumuna göre üst katman (Eskişehir hava durumu API'sinden) ---
-    if (weatherMode === "yagmurlu") {
-      // 🌧️ Yağmurlu: yağmur + rüzgar
-      setLayer("rain", LEVELS.rain);
-      setLayer("thunder", 0, 800, false);
-    } else if (weatherMode === "firtinali") {
-      // ⛈️ Fırtına: yağmur + gök gürültüsü + kuvvetli rüzgar
-      setLayer("rain", LEVELS.rain);
-      setLayer("wind", (activeBaseRef.current.wind || LEVELS.wind) * 1.4);
-      const scheduleThunder = () => {
-        stormLoopRef.current = setTimeout(() => {
-          getLayer("thunder", false).fadeTo(LEVELS.thunder * volume, 400);
-          setTimeout(() => getLayer("thunder", false).fadeTo(0, 1800), 2500);
-          scheduleThunder();
-        }, (20 + Math.random() * 40) * 1000);
+      const scheduleHowl = () => {
+        const attempt = () => {
+          if (busyRef.current === "crowd") {
+            howlTimerRef.current = setTimeout(attempt, (5 + Math.random() * 10) * 1000);
+            return;
+          }
+          busyRef.current = "wolf";
+          engine.playOneShot("wolf-howl");
+          setTimeout(() => { if (busyRef.current === "wolf") busyRef.current = null; }, 6000);
+          howlTimerRef.current = setTimeout(attempt, (300 + Math.random() * 300) * 1000); // 5-10 dk
+        };
+        howlTimerRef.current = setTimeout(attempt, (6 + Math.random() * 10) * 1000);
       };
-      scheduleThunder();
-    } else if (weatherMode === "sisli") {
-      // 🌫️ Sis: sessiz ortam + hafif rüzgar (kuş sesi kesilir)
-      setLayer("birds", 0);
-      setLayer("wind", (activeBaseRef.current.wind || LEVELS.wind) * 0.5);
-      setLayer("rain", 0);
-      setLayer("thunder", 0, 800, false);
-    } else if (weatherMode === "karli") {
-      // ❄️ Karlı: hafif rüzgar, sakin atmosfer
-      setLayer("wind", (activeBaseRef.current.wind || LEVELS.wind) * 0.55);
-      setLayer("rain", 0);
-      setLayer("thunder", 0, 800, false);
-    } else {
-      // ☀️ açık / ☁️ bulutlu / parçalı bulutlu: yağmur-gök gürültüsü kapalı kalır.
-      setLayer("rain", 0);
-      setLayer("thunder", 0, 800, false);
+      scheduleHowl();
+
+      const t1 = setTimeout(() => engine.fadeTo("stadium-ambience", 0.4), 2000);
+      const t2 = setTimeout(() => engine.fadeTo("crowd", 0.3), 3000);
+      timersRef.current.push(t1, t2);
+
+      const scheduleSwell = () => {
+        const attempt = () => {
+          if (busyRef.current === "wolf") {
+            swellTimerRef.current = setTimeout(attempt, (5 + Math.random() * 10) * 1000);
+            return;
+          }
+          busyRef.current = "crowd";
+          engine.fadeTo("crowd", 0.65, 2000);
+          setTimeout(() => {
+            engine.fadeTo("crowd", 0.3, 2500);
+            busyRef.current = null;
+          }, 10000 + Math.random() * 10000);
+          const silenceMinutes = 8 + Math.random() * 12;
+          swellTimerRef.current = setTimeout(attempt, (20 + silenceMinutes * 60) * 1000);
+        };
+        swellTimerRef.current = setTimeout(attempt, 15000);
+      };
+      scheduleSwell();
     }
 
     return () => {
       timersRef.current.forEach(clearTimeout);
-      if (stormLoopRef.current) clearTimeout(stormLoopRef.current);
+      if (howlTimerRef.current) clearTimeout(howlTimerRef.current);
+      if (swellTimerRef.current) clearTimeout(swellTimerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soundEnabled, atmosphere, weatherMode]);
-
-  // Ana ses seviyesi kaydırıcısı değiştiğinde, sekansı yeniden başlatmadan
-  // (kurt ulumasını tekrar tetiklemeden) yalnızca o an aktif katmanları
-  // orantılı olarak yeniden ölçekler.
-  useEffect(() => {
-    if (!soundEnabled) return;
-    ALL_KEYS.forEach((key) => {
-      const base = activeBaseRef.current[key];
-      if (base > 0) getLayer(key).fadeTo(base * volume, 300);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [volume]);
-
-  useEffect(() => {
-    return () => {
-      Object.values(layersRef.current).forEach((layer) => layer?.stopImmediately());
-    };
-  }, []);
+  }, [soundEnabled, atmosphere, weatherMode, engine]);
 
   return null;
 }

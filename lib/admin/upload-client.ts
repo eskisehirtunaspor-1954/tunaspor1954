@@ -1,4 +1,4 @@
-export type UploadKind = "image" | "video" | "document";
+export type UploadKind = "image" | "video" | "document" | "audio";
 
 export interface UploadResult {
   url: string;
@@ -10,6 +10,7 @@ const KIND_LIMITS: Record<UploadKind, number> = {
   image: 8 * 1024 * 1024,
   video: 200 * 1024 * 1024,
   document: 20 * 1024 * 1024,
+  audio: 15 * 1024 * 1024,
 };
 
 const KIND_TEST: Record<UploadKind, (mime: string) => boolean> = {
@@ -21,12 +22,14 @@ const KIND_TEST: Record<UploadKind, (mime: string) => boolean> = {
     m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     m === "application/vnd.ms-excel" ||
     m === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  audio: (m) => m.startsWith("audio/"),
 };
 
 const KIND_LABEL: Record<UploadKind, string> = {
   image: "görsel",
   video: "video",
   document: "PDF/Word/Excel belgesi",
+  audio: "ses",
 };
 
 // /api/admin/upload'a XHR ile gönderir — gerçek yükleme ilerlemesi (upload.onprogress)

@@ -6,7 +6,7 @@ import { friendlyError } from "@/lib/db-errors";
 
 const BUCKET = "media";
 
-type Kind = "image" | "video" | "document";
+type Kind = "image" | "video" | "document" | "audio";
 
 const KIND_RULES: Record<Kind, { test: (mime: string) => boolean; maxSize: number; error: string }> = {
   image: {
@@ -18,6 +18,11 @@ const KIND_RULES: Record<Kind, { test: (mime: string) => boolean; maxSize: numbe
     test: (m) => m.startsWith("video/"),
     maxSize: 200 * 1024 * 1024, // 200MB
     error: "Yalnızca video dosyası yüklenebilir (en fazla 200MB).",
+  },
+  audio: {
+    test: (m) => m.startsWith("audio/"),
+    maxSize: 15 * 1024 * 1024, // 15MB
+    error: "Yalnızca ses dosyası (mp3/wav/ogg) yüklenebilir (en fazla 15MB).",
   },
   document: {
     test: (m) =>
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
   const file = formData?.get("file");
   const folder = String(formData?.get("folder") ?? "misc").replace(/[^a-z0-9_-]/gi, "") || "misc";
   const kindRaw = String(formData?.get("kind") ?? "image");
-  const kind: Kind = kindRaw === "video" || kindRaw === "document" ? kindRaw : "image";
+  const kind: Kind = kindRaw === "video" || kindRaw === "document" || kindRaw === "audio" ? kindRaw : "image";
   const rule = KIND_RULES[kind];
 
   if (!(file instanceof File)) {
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rule.error }, { status: 400 });
   }
 
-  const path = `${folder}/${safeFileName(file.name, kind === "video" ? "mp4" : kind === "document" ? "pdf" : "jpg")}`;
+  const path = `${folder}/${safeFileName(file.name, kind === "video" ? "mp4" : kind === "document" ? "pdf" : kind === "audio" ? "mp3" : "jpg")}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const supabase = createServiceClient();

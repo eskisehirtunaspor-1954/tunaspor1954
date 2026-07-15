@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n/I18nProvider";
+import { buildOrgTree, type OrgNode, type OrgNodeRow } from "@/lib/org-tree";
+import { OrgAccordion } from "@/components/site/OrgAccordion";
+import { getSoundEngine } from "@/lib/sound-engine";
 
 interface TeamCategory {
   key: string;
@@ -54,12 +57,31 @@ export function HamburgerMenu({ open, onClose }: Props) {
   const [teamsExpanded, setTeamsExpanded] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [academyGroupOpen, setAcademyGroupOpen] = useState(false);
+  const [kulubumuzExpanded, setKulubumuzExpanded] = useState(false);
+  const [orgTree, setOrgTree] = useState<OrgNode[]>([]);
   const { t } = useI18n();
   const pathname = usePathname();
 
+  // Menü aç/kapa sesleri — motor kendi kendine sessizce yok sayar (dosya
+  // eksikse veya kullanıcı sesleri henüz açmadıysa çökmez).
+  const wasOpenRef = useRef(open);
+  useEffect(() => {
+    if (wasOpenRef.current !== open) {
+      getSoundEngine().playOneShot(open ? "menu-open" : "menu-close");
+      wasOpenRef.current = open;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!kulubumuzExpanded || orgTree.length) return;
+    fetch("/api/org-nodes-public")
+      .then((r) => r.json())
+      .then((d) => setOrgTree(buildOrgTree((d.data ?? []) as OrgNodeRow[])))
+      .catch(() => {});
+  }, [kulubumuzExpanded, orgTree.length]);
+
   const LINKS = [
     { href: "/", label: t("nav_home") },
-    { href: "/kulubumuz", label: t("nav_about") },
     { href: "/haberler", label: t("nav_news") },
   ];
   const AFTER_TEAMS = [
@@ -121,7 +143,45 @@ export function HamburgerMenu({ open, onClose }: Props) {
 
             <nav className="px-6 py-4 relative">
               <ul className="space-y-1">
-                {LINKS.map((link) => (
+                <MenuLink href="/" label={LINKS[0].label} onClose={onClose} active={pathname === "/"} />
+
+                {/* KULÜBÜMÜZ — açılır panel (Accordion + Tree View), yönetici panelinden dinamik */}
+                <li>
+                  <button
+                    onClick={() => setKulubumuzExpanded((v) => !v)}
+                    className={`w-full flex items-center justify-between py-3.5 border-b border-white/10 text-left transition-colors group ${
+                      pathname === "/kulubumuz" ? "text-tuna-gold" : "hover:text-tuna-gold"
+                    }`}
+                  >
+                    <span className="relative flex items-center gap-2">
+                      {pathname === "/kulubumuz" && <span className="w-1 h-1 rounded-full bg-tuna-gold" />}
+                      {t("nav_about")}
+                      <span className="absolute left-0 -bottom-1 h-px w-0 bg-tuna-gold group-hover:w-full transition-all duration-300" />
+                    </span>
+                    <ChevronDown size={18} className={`transition-transform duration-300 ${kulubumuzExpanded ? "rotate-180 text-tuna-gold" : ""}`} />
+                  </button>
+                  <AnimatePresence>
+                    {kulubumuzExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="overflow-hidden pl-4 py-2 bg-white/[0.02]"
+                      >
+                        {orgTree.length > 0 ? (
+                          <OrgAccordion nodes={orgTree} depth={1} />
+                        ) : (
+                          <Link href="/kulubumuz" onClick={onClose} className="block py-2 text-sm text-tuna-mist hover:text-tuna-gold">
+                            Kulübümüz sayfasına git →
+                          </Link>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </li>
+
+                {LINKS.slice(1).map((link) => (
                   <MenuLink key={link.href} href={link.href} label={link.label} onClose={onClose} active={pathname === link.href} />
                 ))}
 
